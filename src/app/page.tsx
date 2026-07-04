@@ -956,8 +956,8 @@ function RestaurantDetail({ restaurant, onBack, onAddVisit }: { restaurant: Rest
 
         <section className="space-y-3">
           <h3 className="font-bold">写真</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {restaurant.photos?.map((photo) => <PhotoTile key={photo.id} photo={photo} />)}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {restaurant.photos?.map((photo) => <PhotoTile key={photo.id} className="h-44 w-full object-contain" photo={photo} />)}
           </div>
         </section>
       </div>
@@ -1180,7 +1180,7 @@ function Stars({ rating }: { rating: number | null }) {
 
 function RestaurantThumb({ name, photo }: { name: string; photo?: Photo }) {
   if (photo) {
-    return <PhotoTile photo={photo} />;
+    return <PhotoTile className="size-24 shrink-0 object-cover" photo={photo} />;
   }
 
   return (
@@ -1190,8 +1190,8 @@ function RestaurantThumb({ name, photo }: { name: string; photo?: Photo }) {
   );
 }
 
-function PhotoTile({ photo }: { photo: Photo }) {
+function PhotoTile({ className = "aspect-square size-full object-cover", photo }: { className?: string; photo: Photo }) {
   const { data } = getSupabase().storage.from("food-photos").getPublicUrl(photo.storage_path);
 
-  return <img src={data.publicUrl} alt={photo.caption ?? "food photo"} className="aspect-square size-full rounded-lg object-cover" />;
+  return <img src={data.publicUrl} alt={photo.caption ?? "food photo"} className={`rounded-lg bg-muted ${className}`} />;
 }
