@@ -10,7 +10,7 @@ create table public.restaurants (
   genre text,
   status restaurant_status not null default 'wishlist',
   memo text,
-  rating int check (rating between 1 and 5),
+  rating numeric(2,1) check (rating between 0.5 and 5),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -22,7 +22,7 @@ create table public.visits (
   visited_at date not null default current_date,
   dish_name text,
   memo text,
-  rating int check (rating between 1 and 5),
+  rating numeric(2,1) check (rating between 0.5 and 5),
   created_at timestamptz not null default now()
 );
 

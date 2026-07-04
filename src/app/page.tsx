@@ -16,9 +16,11 @@ import {
   Settings,
   Star,
   Utensils,
+  Upload,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getFriendlyAuthError, getPasswordValidation, getRedirectUrl } from "@/lib/auth";
+import { parseMogurecoCsv, type MogurecoImportRecord } from "@/lib/mogureco-import";
 import type { Photo, Restaurant, RestaurantStatus, Tag, Visit } from "@/types/database";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-type View = "list" | "new" | "detail" | "visit" | "account";
+type View = "list" | "new" | "detail" | "visit" | "account" | "import";
 type AuthMode = "login" | "setup";
 type Message = { text: string; type: "neutral" | "success" | "error" };
 
@@ -250,6 +252,7 @@ export default function Home() {
         email={userEmail}
         onAdd={() => setView("new")}
         onAccount={() => setView("account")}
+        onImport={() => setView("import")}
         onSignOut={signOut}
       />
 
@@ -285,6 +288,14 @@ export default function Home() {
             setView("list");
             void loadRestaurants();
           }}
+        />
+      )}
+
+      {view === "import" && (
+        <MogurecoImportPanel
+          restaurants={restaurants}
+          onBack={() => setView("list")}
+          onImported={() => void loadRestaurants()}
         />
       )}
 
@@ -424,7 +435,19 @@ function AuthScreen({
   );
 }
 
-function AppHeader({ email, onAccount, onAdd, onSignOut }: { email: string; onAccount: () => void; onAdd: () => void; onSignOut: () => void }) {
+function AppHeader({
+  email,
+  onAccount,
+  onAdd,
+  onImport,
+  onSignOut,
+}: {
+  email: string;
+  onAccount: () => void;
+  onAdd: () => void;
+  onImport: () => void;
+  onSignOut: () => void;
+}) {
   return (
     <header className="mx-auto mb-5 flex max-w-6xl items-center justify-between gap-3 rounded-lg border bg-white/90 px-3 py-3 shadow-sm backdrop-blur">
       <div className="flex min-w-0 items-center gap-3">
@@ -442,6 +465,13 @@ function AppHeader({ email, onAccount, onAdd, onSignOut }: { email: string; onAc
           <Plus className="size-4" />
           追加
         </Button>
+        <Button className="hidden md:inline-flex" variant="outline" onClick={onImport}>
+          <Upload className="size-4" />
+          CSV
+        </Button>
+        <Button aria-label="CSVインポート" className="md:hidden" size="sm" variant="ghost" onClick={onImport}>
+          <Upload className="size-4" />
+        </Button>
         <Button aria-label="アカウント" size="sm" variant="ghost" onClick={onAccount}>
           <Settings className="size-4" />
         </Button>
@@ -451,6 +481,176 @@ function AppHeader({ email, onAccount, onAdd, onSignOut }: { email: string; onAc
       </div>
     </header>
   );
+}
+
+function MogurecoImportPanel({
+  restaurants,
+  onBack,
+  onImported,
+}: {
+  restaurants: Restaurant[];
+  onBack: () => void;
+  onImported: () => void;
+}) {
+  const [records, setRecords] = useState<MogurecoImportRecord[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [fileName, setFileName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState("");
+
+  async function readCsv(file: File | undefined) {
+    setResult("");
+    setRecords([]);
+    setErrors([]);
+    setFileName(file?.name ?? "");
+    if (!file) return;
+
+    const parsed = parseMogurecoCsv(await file.text());
+    setRecords(parsed.records);
+    setErrors(parsed.errors);
+  }
+
+  async function importRecords() {
+    const client = getSupabase();
+    const { data: user } = await client.auth.getUser();
+    const userId = user.user?.id;
+    if (!userId || !records.length) return;
+
+    setBusy(true);
+    setResult("");
+
+    const existing = new Map(restaurants.map((restaurant) => [restaurantKey(restaurant.name, restaurant.area), restaurant]));
+    let imported = 0;
+    let skippedVisits = 0;
+
+    for (const record of records) {
+      const key = restaurantKey(record.name, record.address);
+      let restaurant = existing.get(key);
+
+      if (!restaurant) {
+        const { data, error } = await client
+          .from("restaurants")
+          .insert({
+            user_id: userId,
+            name: record.name,
+            area: record.address || null,
+            genre: null,
+            status: "visited",
+            rating: record.rating,
+            memo: record.memo || null,
+          })
+          .select("*, tags(*), visits(*), photos(*)")
+          .single();
+
+        if (error) {
+          setErrors((current) => [...current, `${record.name}: ${error.message}`]);
+          continue;
+        }
+
+        restaurant = data as Restaurant;
+        existing.set(key, restaurant);
+      } else {
+        await client
+          .from("restaurants")
+          .update({
+            status: "visited",
+            rating: record.rating,
+            memo: record.memo || restaurant.memo,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", restaurant.id);
+      }
+
+      const alreadyVisited = record.visitedAt ? restaurant.visits?.some((visit) => visit.visited_at === record.visitedAt) : false;
+      if (record.visitedAt && !alreadyVisited) {
+        const { error } = await client.from("visits").insert({
+          user_id: userId,
+          restaurant_id: restaurant.id,
+          visited_at: record.visitedAt,
+          dish_name: null,
+          rating: record.rating,
+          memo: record.memo || null,
+        });
+
+        if (error) {
+          setErrors((current) => [...current, `${record.name}: ${error.message}`]);
+          continue;
+        }
+      } else if (alreadyVisited) {
+        skippedVisits += 1;
+      }
+
+      for (const name of [...new Set(record.tags)]) {
+        const { data: tag } = await client
+          .from("tags")
+          .upsert({ user_id: userId, name }, { onConflict: "user_id,name" })
+          .select()
+          .single();
+        if (tag) {
+          await client
+            .from("restaurant_tags")
+            .upsert({ restaurant_id: restaurant.id, tag_id: tag.id, user_id: userId }, { onConflict: "restaurant_id,tag_id" });
+        }
+      }
+
+      imported += 1;
+    }
+
+    setBusy(false);
+    setResult(`${imported}件をインポートしました。${skippedVisits ? ` 重複する訪問日は${skippedVisits}件スキップしました。` : ""}`);
+    onImported();
+  }
+
+  return (
+    <FormShell title="モグレコCSVインポート" onBack={onBack}>
+      <Card className="space-y-4">
+        <Field label="CSVファイル">
+          <Input accept=".csv,text/csv" type="file" onChange={(event) => void readCsv(event.target.files?.[0])} />
+        </Field>
+        {fileName && (
+          <div className="grid gap-2 rounded-lg bg-muted p-3 text-sm md:grid-cols-3">
+            <span className="truncate font-semibold">{fileName}</span>
+            <span>{records.length}件読み込み</span>
+            <span>{errors.length}件エラー</span>
+          </div>
+        )}
+        {errors.length > 0 && (
+          <div className="max-h-36 overflow-auto rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {errors.map((error) => <p key={error}>{error}</p>)}
+          </div>
+        )}
+        {records.length > 0 && (
+          <div className="overflow-hidden rounded-lg border">
+            <div className="grid grid-cols-[1.2fr_0.8fr_0.5fr] bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground md:grid-cols-[1.4fr_0.8fr_0.5fr_1.3fr]">
+              <span>店舗</span>
+              <span>訪問日</span>
+              <span>評価</span>
+              <span className="hidden md:block">住所</span>
+            </div>
+            <div className="max-h-80 overflow-auto">
+              {records.slice(0, 100).map((record) => (
+                <div key={`${record.name}-${record.visitedAt}-${record.address}`} className="grid grid-cols-[1.2fr_0.8fr_0.5fr] border-t px-3 py-2 text-sm md:grid-cols-[1.4fr_0.8fr_0.5fr_1.3fr]">
+                  <span className="truncate font-semibold">{record.name}</span>
+                  <span>{record.visitedAt ?? "-"}</span>
+                  <span>{record.rating ?? "-"}</span>
+                  <span className="hidden truncate md:block">{record.address || "-"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {result && <MessageBanner message={{ text: result, type: "success" }} />}
+        <Button disabled={busy || records.length === 0} type="button" onClick={importRecords}>
+          <Upload className="size-4" />
+          インポート
+        </Button>
+      </Card>
+    </FormShell>
+  );
+}
+
+function restaurantKey(name: string, area: string | null) {
+  return `${name.trim()}\u0000${(area ?? "").trim()}`;
 }
 
 function DashboardSummary({ stats }: { stats: { total: number; visited: number; wishlist: number; photos: number } }) {
@@ -586,7 +786,7 @@ function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () =
           <Input value={form.genre} onChange={(event) => setForm({ ...form, genre: event.target.value })} />
         </Field>
         <Field label="評価 1-5">
-          <Input max="5" min="1" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
+          <Input max="5" min="0.5" step="0.5" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
         </Field>
         <Field label="タグ">
           <Input placeholder="ラーメン 渋谷 一人飯" value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} />
@@ -705,7 +905,7 @@ function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; on
           <Input value={form.dish_name} onChange={(event) => setForm({ ...form, dish_name: event.target.value })} />
         </Field>
         <Field label="評価 1-5">
-          <Input max="5" min="1" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
+          <Input max="5" min="0.5" step="0.5" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
         </Field>
         <Field label="写真">
           <Input accept="image/*" type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
