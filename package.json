@@ -1,0 +1,8 @@
+{
+  "name": "log-project",
+  "private": true,
+  "scripts": {
+    "test:gas": "cd image-collector && node --test test/*.test.js",
+    "check:gas": "cd image-collector && for f in src/*.js test/*.js; do node --check \"$f\" || exit 1; done"
+  }
+}
