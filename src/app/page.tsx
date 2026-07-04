@@ -358,7 +358,7 @@ export default function Home() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <main className="min-h-screen bg-background px-4 py-4 text-foreground md:px-8">{children}</main>;
+  return <main className="min-h-screen bg-background px-4 py-6 text-foreground md:px-8 md:py-10 max-w-6xl mx-auto flex flex-col justify-start">{children}</main>;
 }
 
 function AuthScreen({
@@ -385,88 +385,103 @@ function AuthScreen({
   onSetup: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <main className="min-h-screen bg-[#f8f5ee] px-4 py-4 text-foreground md:py-6">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl shadow-slate-900/10 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="relative min-h-[440px] overflow-hidden bg-slate-950 text-white lg:min-h-full">
+    <main className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6 md:p-10">
+      <div className="w-full max-w-5xl overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-xl shadow-stone-200/40 lg:grid lg:grid-cols-[1.2fr_0.8fr] min-h-[600px]">
+        {/* 左側: ビジュアルセクション */}
+        <section className="relative min-h-[300px] overflow-hidden bg-stone-900 text-white lg:min-h-full flex flex-col justify-between p-8 md:p-10">
           <img
-            alt="朝の食卓とスマートフォンに表示されたもぐレコの食事記録イメージ"
-            className="absolute inset-0 size-full object-cover"
+            alt="もぐレコ背景"
+            className="absolute inset-0 size-full object-cover opacity-60 mix-blend-luminosity transition duration-700 hover:scale-105"
             src="/images/mogureco-hero.png"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/86 via-slate-950/48 to-slate-950/10" />
-          <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-slate-950/80 to-transparent" />
-          <div className="relative flex min-h-[440px] flex-col justify-between p-6 sm:p-8 lg:min-h-full lg:p-10">
-            <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/20 bg-white/14 px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur">
-              <ChefHat className="size-4 text-amber-300" />
-              もぐレコ
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/30 to-stone-900/20" />
+          
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-semibold tracking-wide backdrop-blur-md">
+              <ChefHat className="size-3.5 text-stone-200" />
+              <span>MOGURECO</span>
             </div>
-            <div className="max-w-xl space-y-4 rounded-xl bg-slate-950/56 p-3 backdrop-blur-sm sm:space-y-5 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
-              <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-6xl md:leading-[0.98]">
-                食べたい店と食べた記録を、写真ごと残す。
-              </h1>
-              <p className="max-w-lg text-sm leading-7 text-white/88 sm:text-base md:text-lg">
-                モグレコCSVと写真フォルダを取り込み、行った店・行きたい店・訪問メモをひとつの画面で見返せます。
-              </p>
-              <div className="grid max-w-lg grid-cols-3 gap-2">
-                <PreviewStat className="border-white/15 bg-white/14 text-white backdrop-blur" label="Import" value="CSV" />
-                <PreviewStat className="border-white/15 bg-white/14 text-white backdrop-blur" label="Photos" value="画像" />
-                <PreviewStat className="border-white/15 bg-white/14 text-white backdrop-blur" label="Places" value="店舗" />
+          </div>
+
+          <div className="relative z-10 max-w-md mt-auto space-y-4">
+            <h1 className="text-3xl font-extrabold tracking-tight leading-tight md:text-4xl text-white">
+              日常の美食を、<br />美しい記憶のままに。
+            </h1>
+            <p className="text-sm leading-relaxed text-stone-200 font-light">
+              お気に入りの店、心に残った料理、あの日感じた味。もぐレコは、あなたの美味しい体験を写真と文字で上品に残すプライベートログです。
+            </p>
+            <div className="grid grid-cols-3 gap-2 pt-2 text-stone-200">
+              <div className="rounded-lg border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm text-center">
+                <span className="block text-[10px] uppercase tracking-wider opacity-60">Import</span>
+                <span className="font-semibold text-xs md:text-sm">CSV一括</span>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm text-center">
+                <span className="block text-[10px] uppercase tracking-wider opacity-60">Archive</span>
+                <span className="font-semibold text-xs md:text-sm">写真記録</span>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm text-center">
+                <span className="block text-[10px] uppercase tracking-wider opacity-60">Manage</span>
+                <span className="font-semibold text-xs md:text-sm">店舗リスト</span>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="flex items-center bg-[linear-gradient(145deg,#fffaf0,#f0fbf6)] px-5 py-8 sm:px-8 lg:px-10">
-          <div className="w-full">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-lg border bg-white/80 px-3 py-2 text-sm font-semibold shadow-sm">
-              <ChefHat className="size-4 text-primary" />
-              もぐレコ
+        {/* 右側: フォームセクション */}
+        <section className="flex flex-col justify-between bg-stone-50/50 p-8 md:p-10">
+          <div className="my-auto space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold tracking-tight text-stone-900">ようこそ</h2>
+              <p className="text-sm text-stone-500">アカウントにサインインするか、新規パスワードを設定してください。</p>
             </div>
-            <Card className="mx-auto w-full max-w-md border-slate-200 bg-white/95 p-5 shadow-xl shadow-slate-900/10">
-              <div className="mb-5 flex rounded-lg bg-slate-100 p-1">
-                <button
-                  className={`h-10 flex-1 rounded-md text-sm font-semibold transition ${authMode === "login" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
-                  type="button"
-                  onClick={() => onModeChange("login")}
-                >
-                  ログイン
-                </button>
-                <button
-                  className={`h-10 flex-1 rounded-md text-sm font-semibold transition ${authMode === "setup" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
-                  type="button"
-                  onClick={() => onModeChange("setup")}
-                >
-                  パスワード設定
-                </button>
-              </div>
 
-              {message && <MessageBanner message={message} />}
+            <div className="flex rounded-lg bg-stone-200/50 p-1">
+              <button
+                className={`h-9 flex-1 rounded-md text-xs font-semibold transition ${authMode === "login" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-900"}`}
+                type="button"
+                onClick={() => onModeChange("login")}
+              >
+                ログイン
+              </button>
+              <button
+                className={`h-9 flex-1 rounded-md text-xs font-semibold transition ${authMode === "setup" ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-900"}`}
+                type="button"
+                onClick={() => onModeChange("setup")}
+              >
+                パスワード設定
+              </button>
+            </div>
 
-              {authMode === "login" ? (
-                <form className="space-y-4" onSubmit={onLogin}>
-                  <Field label="メールアドレス">
-                    <Input autoComplete="email" type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} />
-                  </Field>
-                  <Field label="パスワード">
-                    <Input autoComplete="current-password" type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} />
-                  </Field>
-                  <Button className="w-full" disabled={authBusy} type="submit">
-                    <Lock className="size-4" />
-                    ログイン
-                  </Button>
-                </form>
-              ) : (
-                <form className="space-y-4" onSubmit={onSetup}>
-                  <Field label="メールアドレス">
-                    <Input autoComplete="email" type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} />
-                  </Field>
-                  <Button className="w-full" disabled={authBusy} type="submit">
-                    <KeyRound className="size-4" />
-                    設定メールを送る
-                  </Button>
-                </form>
-              )}
-            </Card>
+            {message && <MessageBanner message={message} />}
+
+            {authMode === "login" ? (
+              <form className="space-y-4" onSubmit={onLogin}>
+                <Field label="メールアドレス">
+                  <Input autoComplete="email" placeholder="name@example.com" type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} />
+                </Field>
+                <Field label="パスワード">
+                  <Input autoComplete="current-password" placeholder="••••••••" type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} />
+                </Field>
+                <Button className="w-full font-bold shadow-sm" disabled={authBusy} type="submit">
+                  <Lock className="size-4" />
+                  サインイン
+                </Button>
+              </form>
+            ) : (
+              <form className="space-y-4" onSubmit={onSetup}>
+                <Field label="メールアドレス">
+                  <Input autoComplete="email" placeholder="name@example.com" type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} />
+                </Field>
+                <Button className="w-full font-bold shadow-sm" disabled={authBusy} type="submit">
+                  <KeyRound className="size-4" />
+                  設定用の案内を送る
+                </Button>
+              </form>
+            )}
+          </div>
+
+          <div className="pt-6 text-center text-xs text-stone-400">
+            &copy; {new Date().getFullYear()} MOGURECO. All rights reserved.
           </div>
         </section>
       </div>
@@ -488,33 +503,33 @@ function AppHeader({
   onSignOut: () => void;
 }) {
   return (
-    <header className="mx-auto mb-5 flex max-w-6xl items-center justify-between gap-3 rounded-lg border bg-white/90 px-3 py-3 shadow-sm backdrop-blur">
+    <header className="mx-auto mb-6 flex max-w-6xl items-center justify-between gap-4 rounded-xl border border-stone-200/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-md">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground">
+        <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
           <ChefHat className="size-5" />
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Gourmet Log</p>
-          <h1 className="truncate text-lg font-bold">もぐレコ</h1>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Gourmet Journal</p>
+          <h1 className="truncate text-base font-bold text-stone-850">もぐレコ</h1>
         </div>
       </div>
-      <div className="flex items-center gap-1">
-        <span className="hidden max-w-44 truncate text-sm text-muted-foreground md:inline">{email}</span>
-        <Button className="hidden md:inline-flex" onClick={onAdd}>
+      <div className="flex items-center gap-1.5">
+        <span className="hidden max-w-44 truncate text-xs text-stone-500 font-medium md:inline mr-2">{email}</span>
+        <Button className="hidden md:inline-flex shadow-sm hover:opacity-95" size="sm" onClick={onAdd}>
           <Plus className="size-4" />
-          追加
+          新規追加
         </Button>
-        <Button className="hidden md:inline-flex" variant="outline" onClick={onImport}>
+        <Button className="hidden md:inline-flex" size="sm" variant="outline" onClick={onImport}>
           <Upload className="size-4" />
-          CSV
+          CSVインポート
         </Button>
-        <Button aria-label="CSVインポート" className="md:hidden" size="sm" variant="ghost" onClick={onImport}>
+        <Button aria-label="CSVインポート" className="md:hidden text-stone-600 hover:text-stone-900" size="sm" variant="ghost" onClick={onImport}>
           <Upload className="size-4" />
         </Button>
-        <Button aria-label="アカウント" size="sm" variant="ghost" onClick={onAccount}>
+        <Button aria-label="アカウント" className="text-stone-600 hover:text-stone-900" size="sm" variant="ghost" onClick={onAccount}>
           <Settings className="size-4" />
         </Button>
-        <Button aria-label="ログアウト" size="sm" variant="ghost" onClick={onSignOut}>
+        <Button aria-label="ログアウト" className="text-stone-600 hover:text-stone-900" size="sm" variant="ghost" onClick={onSignOut}>
           <LogOut className="size-4" />
         </Button>
       </div>
@@ -713,81 +728,100 @@ function MogurecoImportPanel({
 
   return (
     <FormShell title="もぐレコCSVインポート" onBack={onBack}>
-      <Card className="space-y-4">
-        <Field label="CSVファイル">
-          <Input accept=".csv,text/csv" type="file" onChange={(event) => void readCsv(event.target.files?.[0])} />
-        </Field>
-        <Field label="画像フォルダ">
-          <Input
-            {...folderInputProps}
-            accept="image/*"
-            type="file"
-            multiple
-            onChange={(event) => readImageFolder(event.target.files)}
-          />
-        </Field>
+      <Card className="space-y-5 border border-stone-200/60 bg-white rounded-xl p-6 shadow-sm">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="CSVファイル">
+            <Input className="bg-stone-50 border-stone-200/80 file:bg-stone-200/50 file:border-none file:text-xs file:font-semibold text-stone-700 cursor-pointer" accept=".csv,text/csv" type="file" onChange={(event) => void readCsv(event.target.files?.[0])} />
+          </Field>
+          <Field label="画像フォルダ">
+            <Input
+              {...folderInputProps}
+              className="bg-stone-50 border-stone-200/80 file:bg-stone-200/50 file:border-none file:text-xs file:font-semibold text-stone-700 cursor-pointer"
+              accept="image/*"
+              type="file"
+              multiple
+              onChange={(event) => readImageFolder(event.target.files)}
+            />
+          </Field>
+        </div>
+
         {fileName && (
-          <div className="grid gap-2 rounded-lg bg-muted p-3 text-sm md:grid-cols-3">
-            <span className="truncate font-semibold">{fileName}</span>
-            <span>{records.length}件読み込み</span>
-            <span>{errors.length}件エラー</span>
+          <div className="grid gap-3 rounded-lg bg-stone-50 border border-stone-100 p-3 text-xs md:grid-cols-3 text-stone-600">
+            <span className="truncate font-semibold text-stone-800">{fileName}</span>
+            <span>{records.length} 件のレコードを検出</span>
+            <span className={errors.length > 0 ? "text-red-600 font-semibold" : "text-stone-400"}>
+              {errors.length} 件のエラー
+            </span>
           </div>
         )}
+        
         {errors.length > 0 && (
-          <div className="max-h-36 overflow-auto rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-            {errors.map((error) => <p key={error}>{error}</p>)}
+          <div className="max-h-36 overflow-auto rounded-lg border border-red-200/60 bg-red-50/30 p-3 text-xs text-red-800">
+            {errors.map((error, index) => <p key={index} className="font-light">{error}</p>)}
           </div>
         )}
+
         {imageSummary && (
-          <div className="grid gap-2 rounded-lg border bg-white p-3 text-sm md:grid-cols-4">
-            <span className="flex items-center gap-2 font-semibold">
-              <FolderOpen className="size-4 text-primary" />
+          <div className="grid gap-3 rounded-lg border border-stone-200/60 bg-white p-3.5 text-xs md:grid-cols-4 text-stone-600">
+            <span className="flex items-center gap-1.5 font-bold text-stone-700">
+              <FolderOpen className="size-3.5 text-primary" />
               画像フォルダ
             </span>
-            <span>{imageSummary.files.length}枚</span>
-            <span>{imageSummary.restaurantCount}店舗</span>
-            <span>{formatBytes(imageSummary.totalBytes)}</span>
-            {imageSummary.skippedCount > 0 && <span className="text-amber-700 md:col-span-4">画像以外のファイルを{imageSummary.skippedCount}件スキップします。</span>}
+            <span>対象: {imageSummary.files.length} 枚</span>
+            <span>検出: {imageSummary.restaurantCount} 店舗</span>
+            <span className="font-medium text-stone-500">{formatBytes(imageSummary.totalBytes)}</span>
+            {imageSummary.skippedCount > 0 && (
+              <span className="text-amber-700/90 font-light md:col-span-4 mt-1">
+                画像以外のファイル（{imageSummary.skippedCount} 件）は自動で除外されます。
+              </span>
+            )}
           </div>
         )}
+
         {records.length > 0 && (
-          <div className="overflow-hidden rounded-lg border">
-            <div className="grid grid-cols-[1.2fr_0.8fr_0.5fr] bg-muted px-3 py-2 text-xs font-semibold text-muted-foreground md:grid-cols-[1.4fr_0.8fr_0.5fr_1.3fr]">
-              <span>店舗</span>
+          <div className="overflow-hidden rounded-lg border border-stone-200/60">
+            <div className="grid grid-cols-[1.2fr_0.8fr_0.5fr] bg-stone-50 px-3 py-2.5 text-[10px] font-bold text-stone-500 uppercase tracking-wider md:grid-cols-[1.4fr_0.8fr_0.5fr_1.3fr] border-b">
+              <span>店舗名</span>
               <span>訪問日</span>
               <span>評価</span>
               <span className="hidden md:block">住所</span>
             </div>
-            <div className="max-h-80 overflow-auto">
-              {records.slice(0, 100).map((record) => (
-                <div key={`${record.name}-${record.visitedAt}-${record.address}`} className="grid grid-cols-[1.2fr_0.8fr_0.5fr] border-t px-3 py-2 text-sm md:grid-cols-[1.4fr_0.8fr_0.5fr_1.3fr]">
-                  <span className="truncate font-semibold">{record.name}</span>
-                  <span>{record.visitedAt ?? "-"}</span>
-                  <span>{record.rating ?? "-"}</span>
-                  <span className="hidden truncate md:block">{record.address || "-"}</span>
+            <div className="max-h-60 overflow-auto divide-y divide-stone-100">
+              {records.slice(0, 100).map((record, index) => (
+                <div key={index} className="grid grid-cols-[1.2fr_0.8fr_0.5fr] px-3 py-2 text-xs md:grid-cols-[1.4fr_0.8fr_0.5fr_1.3fr] text-stone-650 hover:bg-stone-50/50">
+                  <span className="truncate font-semibold text-stone-850">{record.name}</span>
+                  <span className="font-light">{record.visitedAt ?? "-"}</span>
+                  <span className="font-semibold text-amber-600">{record.rating ?? "-"}</span>
+                  <span className="hidden truncate font-light md:block">{record.address || "-"}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
+
         {busy && uploadProgress.total > 0 && (
-          <div className="space-y-2 rounded-lg bg-muted p-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-2 font-semibold">
-                <ImageIcon className="size-4 text-primary" />
-                画像アップロード中
+          <div className="space-y-2 rounded-lg bg-stone-50 border border-stone-100 p-3.5 text-xs">
+            <div className="flex items-center justify-between gap-3 text-stone-600">
+              <span className="flex items-center gap-1.5 font-bold">
+                <ImageIcon className="size-3.5 text-primary" />
+                画像をアップロード中...
               </span>
-              <span>{uploadProgress.done} / {uploadProgress.total}</span>
+              <span className="font-semibold tabular-nums">{uploadProgress.done} / {uploadProgress.total}</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-white">
-              <div className="h-full bg-primary transition-all" style={{ width: `${uploadProgress.total ? (uploadProgress.done / uploadProgress.total) * 100 : 0}%` }} />
+            <div className="h-2 overflow-hidden rounded-full bg-stone-200/60">
+              <div 
+                className="h-full bg-primary transition-all duration-300 rounded-full" 
+                style={{ width: `${uploadProgress.total ? (uploadProgress.done / uploadProgress.total) * 100 : 0}%` }} 
+              />
             </div>
           </div>
         )}
+
         {result && <MessageBanner message={{ text: result, type: "success" }} />}
-        <Button disabled={busy || !canImport} type="button" onClick={importRecords}>
+
+        <Button disabled={busy || !canImport} type="button" onClick={importRecords} className="shadow-sm">
           <Upload className="size-4" />
-          インポート
+          インポート処理を開始
         </Button>
       </Card>
     </FormShell>
@@ -814,30 +848,35 @@ function formatBytes(bytes: number) {
 
 function DashboardHero({ stats }: { stats: { total: number; visited: number; wishlist: number; photos: number } }) {
   return (
-    <section className="mx-auto mb-4 grid max-w-6xl overflow-hidden rounded-lg border bg-white shadow-sm md:grid-cols-[1fr_19rem]">
-      <div className="space-y-4 p-5 md:p-6">
-        <div className="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-          <Camera className="size-4" />
-          もぐレコ取り込み
+    <section className="mx-auto mb-6 grid max-w-6xl overflow-hidden rounded-xl border border-stone-200/60 bg-white shadow-sm md:grid-cols-[1fr_20rem]">
+      <div className="flex flex-col justify-between p-6 md:p-8 space-y-6">
+        <div className="space-y-4">
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-600">
+            <Camera className="size-3.5" />
+            <span>Archive & Collect</span>
+          </div>
+          <div className="max-w-2xl space-y-2">
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-stone-850">
+              写真と記憶で紡ぐ、私だけの美食図鑑。
+            </h2>
+            <p className="text-xs md:text-sm leading-relaxed text-stone-500 font-light">
+              インポートしたCSVの店舗情報と、写真フォルダの料理画像を自動でマッチング。訪れた店やこれから行きたい店を、美しいグリッドでスマートに整理・振り返ることができます。
+            </p>
+          </div>
         </div>
-        <div className="max-w-2xl space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">写真つきの訪問記録を、まとめて見返す。</h2>
-          <p className="text-sm leading-6 text-muted-foreground md:text-base">
-            CSVの店舗情報と写真フォルダを合わせて取り込み、訪問日・評価・写真を店舗ごとに整理します。
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          <HeroMetric label="店舗" value={stats.total} />
+        <div className="grid grid-cols-3 gap-4 pt-2 border-t border-stone-100">
+          <HeroMetric label="登録店舗数" value={stats.total} />
           <HeroMetric label="訪問済み" value={stats.visited} />
-          <HeroMetric label="写真" value={stats.photos} />
+          <HeroMetric label="写真アーカイブ" value={stats.photos} />
         </div>
       </div>
-      <div className="relative min-h-44 md:min-h-full">
+      <div className="relative min-h-[160px] md:min-h-full bg-stone-100">
         <img
-          alt="もぐレコの食事記録をイメージした朝食とスマートフォン"
-          className="absolute inset-0 size-full object-cover"
+          alt="食事の様子イメージ"
+          className="absolute inset-0 size-full object-cover mix-blend-multiply opacity-90"
           src="/images/mogureco-hero.png"
         />
+        <div className="absolute inset-0 bg-gradient-to-r from-white via-transparent to-transparent md:block hidden" />
       </div>
     </section>
   );
@@ -845,20 +884,20 @@ function DashboardHero({ stats }: { stats: { total: number; visited: number; wis
 
 function HeroMetric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border bg-slate-50 px-3 py-2">
-      <span className="block text-xs font-semibold text-muted-foreground">{label}</span>
-      <strong className="text-lg text-slate-950">{value}</strong>
+    <div className="space-y-1">
+      <span className="block text-[10px] font-bold uppercase tracking-wider text-stone-400">{label}</span>
+      <strong className="text-xl font-extrabold text-stone-800 tabular-nums">{value}</strong>
     </div>
   );
 }
 
 function DashboardSummary({ stats }: { stats: { total: number; visited: number; wishlist: number; photos: number } }) {
   return (
-    <section className="mx-auto grid max-w-6xl grid-cols-2 gap-3 md:grid-cols-4">
-      <StatCard label="Total" value={stats.total} />
-      <StatCard label="Visited" value={stats.visited} />
-      <StatCard label="Wishlist" value={stats.wishlist} />
-      <StatCard label="Photos" value={stats.photos} />
+    <section className="mx-auto grid max-w-6xl grid-cols-2 gap-4 md:grid-cols-4 mb-6">
+      <StatCard label="すべての店" value={stats.total} />
+      <StatCard label="行った店" value={stats.visited} />
+      <StatCard label="行きたい店" value={stats.wishlist} />
+      <StatCard label="写真の数" value={stats.photos} />
     </section>
   );
 }
@@ -879,28 +918,38 @@ function ListControls({
   onStatusChange: (status: "all" | RestaurantStatus) => void;
 }) {
   return (
-    <section className="mx-auto mt-4 grid max-w-6xl gap-3 md:grid-cols-[1fr_auto_auto]">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input className="pl-10" placeholder="店名・エリア・ジャンル・タグで検索" value={query} onChange={(event) => onQueryChange(event.target.value)} />
+    <section className="mx-auto mt-6 grid max-w-6xl gap-4 md:grid-cols-[1fr_auto_auto] items-center">
+      <div className="relative w-full">
+        <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-stone-400" />
+        <Input 
+          className="pl-10 pr-4 h-10 bg-white border-stone-200 shadow-sm focus-visible:ring-primary/20 rounded-lg text-sm transition-all" 
+          placeholder="店名・エリア・ジャンル・タグで検索..." 
+          value={query} 
+          onChange={(event) => onQueryChange(event.target.value)} 
+        />
       </div>
-      <label className="relative block">
-        <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <select
-          aria-label="並び替え"
-          className="h-11 w-full rounded-lg border border-input bg-white pl-10 pr-9 text-sm font-semibold shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:w-36"
-          value={sortMode}
-          onChange={(event) => onSortModeChange(event.target.value as SortMode)}
-        >
-          <option value="newest">新着順</option>
-          <option value="rating">星が高い順</option>
-          <option value="visitDate">訪問日順</option>
-        </select>
-      </label>
-      <div className="grid grid-cols-3 gap-2 rounded-lg border bg-white p-1">
-        <FilterButton active={status === "all"} label="すべて" onClick={() => onStatusChange("all")} />
-        <FilterButton active={status === "visited"} label="行った" onClick={() => onStatusChange("visited")} />
-        <FilterButton active={status === "wishlist"} label="行きたい" onClick={() => onStatusChange("wishlist")} />
+      
+      <div className="flex gap-3 w-full md:w-auto items-center">
+        <div className="relative flex-1 md:flex-none">
+          <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-stone-500" />
+          <select
+            aria-label="並び替え"
+            className="h-10 w-full md:w-40 rounded-lg border border-stone-200 bg-white pl-9 pr-8 text-xs font-semibold text-stone-700 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/20 transition-all appearance-none cursor-pointer"
+            value={sortMode}
+            onChange={(event) => onSortModeChange(event.target.value as SortMode)}
+          >
+            <option value="newest">最新の更新順</option>
+            <option value="rating">評価の高い順</option>
+            <option value="visitDate">訪問日順</option>
+          </select>
+          <span className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 flex items-center justify-center text-stone-400 text-xs">▼</span>
+        </div>
+
+        <div className="flex rounded-lg bg-stone-200/50 p-0.5 border border-stone-200/30">
+          <FilterButton active={status === "all"} label="すべて" onClick={() => onStatusChange("all")} />
+          <FilterButton active={status === "visited"} label="行った" onClick={() => onStatusChange("visited")} />
+          <FilterButton active={status === "wishlist"} label="行きたい" onClick={() => onStatusChange("wishlist")} />
+        </div>
       </div>
     </section>
   );
@@ -910,30 +959,54 @@ function RestaurantCard({ restaurant, onClick }: { restaurant: Restaurant; onCli
   const latestPhoto = restaurant.photos?.[0];
 
   return (
-    <Card className="group cursor-pointer overflow-hidden p-0 transition hover:-translate-y-0.5 hover:shadow-md" onClick={onClick}>
-      <div className="flex gap-3 p-3">
+    <Card 
+      className="group cursor-pointer overflow-hidden p-0 border border-stone-200/60 bg-white transition-all duration-300 hover:shadow-md hover:border-stone-300 rounded-xl flex" 
+      onClick={onClick}
+    >
+      <div className="flex gap-4 p-4 w-full">
         <RestaurantThumb photo={latestPhoto} name={restaurant.name} />
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="truncate text-base font-bold">{restaurant.name}</h2>
-              <p className="mt-1 flex items-center gap-1 truncate text-sm text-muted-foreground">
-                <MapPin className="size-4 shrink-0" />
-                {restaurant.area || "エリア未設定"} / {restaurant.genre || "ジャンル未設定"}
-              </p>
+        
+        <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5 space-y-2">
+          <div className="space-y-1">
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="truncate text-base font-bold text-stone-800 tracking-tight group-hover:text-primary transition-colors">
+                {restaurant.name}
+              </h2>
+              <Badge 
+                className={`font-semibold text-[10px] tracking-wider px-2 py-0.5 rounded-full border border-transparent shadow-none shrink-0 ${
+                  restaurant.status === "visited" 
+                    ? "bg-primary/10 text-primary border-primary/10" 
+                    : "bg-accent/10 text-accent border-accent/10"
+                }`}
+              >
+                {restaurant.status === "visited" ? "行った店" : "行きたい店"}
+              </Badge>
             </div>
-            <Badge className={restaurant.status === "visited" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}>
-              {restaurant.status === "visited" ? "行った" : "行きたい"}
-            </Badge>
+            
+            <p className="flex items-center gap-1 truncate text-xs text-stone-500 font-light">
+              <MapPin className="size-3 shrink-0 text-stone-400" />
+              <span>{restaurant.area || "エリア未設定"}</span>
+              <span className="text-stone-300 mx-1">|</span>
+              <span>{restaurant.genre || "ジャンル未設定"}</span>
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-stone-500 pt-1">
             <Stars rating={restaurant.rating} />
-            <span>{restaurant.visits?.length ?? 0} visits</span>
-            <span>{restaurant.photos?.length ?? 0} photos</span>
+            <span className="text-stone-300">•</span>
+            <span className="font-light">{restaurant.visits?.length ?? 0} 回の訪問</span>
+            <span className="text-stone-300">•</span>
+            <span className="font-light">{restaurant.photos?.length ?? 0} 枚の写真</span>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+
+          <div className="flex flex-wrap gap-1 pt-1">
             {restaurant.tags?.slice(0, 4).map((tag) => (
-              <Badge key={tag.id} className="bg-slate-100 text-slate-600">#{tag.name}</Badge>
+              <Badge 
+                key={tag.id} 
+                className="bg-stone-100 hover:bg-stone-100 text-stone-600 font-light text-[10px] px-1.5 py-0 border border-stone-200/40 rounded shadow-none"
+              >
+                #{tag.name}
+              </Badge>
             ))}
           </div>
         </div>
@@ -984,34 +1057,43 @@ function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () =
   }
 
   return (
-    <FormShell title="店舗追加" onBack={onBack}>
-      <form className="grid gap-4 md:grid-cols-2" onSubmit={save}>
-        <Field label="店名">
-          <Input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-        </Field>
-        <Field label="分類">
-          <select className="h-11 w-full rounded-lg border border-input bg-white px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" value={form.status} onChange={(event) => setForm({ ...form, status: event.target.value as RestaurantStatus })}>
-            <option value="visited">行った店</option>
-            <option value="wishlist">行きたい店</option>
-          </select>
-        </Field>
-        <Field label="エリア">
-          <Input value={form.area} onChange={(event) => setForm({ ...form, area: event.target.value })} />
-        </Field>
-        <Field label="ジャンル">
-          <Input value={form.genre} onChange={(event) => setForm({ ...form, genre: event.target.value })} />
-        </Field>
-        <Field label="評価 1-5">
-          <Input max="5" min="0.5" step="0.5" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
-        </Field>
-        <Field label="タグ">
-          <Input placeholder="ラーメン 渋谷 一人飯" value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} />
-        </Field>
-        <Field className="md:col-span-2" label="メモ">
-          <Textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
-        </Field>
-        <Button className="md:col-span-2" disabled={busy} type="submit">保存</Button>
-      </form>
+    <FormShell title="店舗を追加" onBack={onBack}>
+      <Card className="border border-stone-200/60 bg-white rounded-xl p-6 shadow-sm">
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={save}>
+          <Field label="店名">
+            <Input required placeholder="店名を入力" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          </Field>
+          <Field label="分類">
+            <div className="relative">
+              <select 
+                className="h-10 w-full rounded-lg border border-stone-200 bg-white px-3 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/20 appearance-none cursor-pointer pr-10 font-medium text-stone-700 transition-all" 
+                value={form.status} 
+                onChange={(event) => setForm({ ...form, status: event.target.value as RestaurantStatus })}
+              >
+                <option value="visited">行った店</option>
+                <option value="wishlist">行きたい店</option>
+              </select>
+              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs">▼</span>
+            </div>
+          </Field>
+          <Field label="エリア">
+            <Input placeholder="例: 渋谷、恵比寿" value={form.area} onChange={(event) => setForm({ ...form, area: event.target.value })} />
+          </Field>
+          <Field label="ジャンル">
+            <Input placeholder="例: 和食、イタリアン、カフェ" value={form.genre} onChange={(event) => setForm({ ...form, genre: event.target.value })} />
+          </Field>
+          <Field label="評価 (1 - 5)">
+            <Input max="5" min="0.5" placeholder="星評価 (例: 4.5)" step="0.5" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
+          </Field>
+          <Field label="タグ">
+            <Input placeholder="スペース区切り (例: ラーメン 渋谷 一人飯)" value={form.tags} onChange={(event) => setForm({ ...form, tags: event.target.value })} />
+          </Field>
+          <Field className="md:col-span-2" label="メモ">
+            <Textarea placeholder="店内の雰囲気、予算、おすすめメニューなど..." value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+          </Field>
+          <Button className="md:col-span-2 font-bold shadow-sm" disabled={busy} type="submit">店舗を保存する</Button>
+        </form>
+      </Card>
     </FormShell>
   );
 }
@@ -1019,50 +1101,104 @@ function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () =
 function RestaurantDetail({ restaurant, onBack, onAddVisit }: { restaurant: Restaurant; onBack: () => void; onAddVisit: () => void }) {
   return (
     <FormShell title={restaurant.name} onBack={onBack}>
-      <div className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
-        <Card className="space-y-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                <MapPin className="size-4" />
-                {restaurant.area || "エリア未設定"} / {restaurant.genre || "ジャンル未設定"}
-              </p>
-              <div className="mt-2 flex items-center gap-3">
-                <Stars rating={restaurant.rating} />
-                <Badge>{restaurant.status === "visited" ? "行った" : "行きたい"}</Badge>
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-6">
+          <Card className="space-y-4 border border-stone-200/60 shadow-sm rounded-xl p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1.5">
+                <p className="flex items-center gap-1 text-xs text-stone-500 font-light">
+                  <MapPin className="size-3.5 text-stone-400" />
+                  <span>{restaurant.area || "エリア未設定"}</span>
+                  <span className="text-stone-300 mx-1">|</span>
+                  <span>{restaurant.genre || "ジャンル未設定"}</span>
+                </p>
+                <div className="flex items-center gap-3">
+                  <Stars rating={restaurant.rating} />
+                  <Badge 
+                    className={`font-semibold text-[10px] tracking-wider px-2 py-0.5 rounded-full border border-transparent shadow-none shrink-0 ${
+                      restaurant.status === "visited" 
+                        ? "bg-primary/10 text-primary border-primary/10" 
+                        : "bg-accent/10 text-accent border-accent/10"
+                    }`}
+                  >
+                    {restaurant.status === "visited" ? "行った店" : "行きたい店"}
+                  </Badge>
+                </div>
               </div>
+              <Button size="sm" onClick={onAddVisit} className="shadow-sm">
+                <Utensils className="size-4" />
+                訪問記録を追加
+              </Button>
             </div>
-            <Button onClick={onAddVisit}>
-              <Utensils className="size-4" />
-              訪問追加
-            </Button>
-          </div>
-          {restaurant.memo && <p className="rounded-lg bg-muted p-3 text-sm leading-6">{restaurant.memo}</p>}
-          <div className="flex flex-wrap gap-2">
-            {restaurant.tags?.map((tag) => <Badge key={tag.id}>#{tag.name}</Badge>)}
-          </div>
-        </Card>
+            
+            {restaurant.memo && (
+              <div className="rounded-lg bg-stone-50 border border-stone-100 p-4">
+                <p className="text-sm leading-relaxed text-stone-600 font-light whitespace-pre-wrap">{restaurant.memo}</p>
+              </div>
+            )}
+            
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {restaurant.tags?.map((tag) => (
+                <Badge 
+                  key={tag.id} 
+                  className="bg-stone-100 hover:bg-stone-100 text-stone-600 font-light text-[10px] px-2 py-0.5 border border-stone-200/40 rounded shadow-none"
+                >
+                  #{tag.name}
+                </Badge>
+              ))}
+            </div>
+          </Card>
 
-        <section className="space-y-3">
-          <h3 className="font-bold">写真</h3>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {restaurant.photos?.map((photo) => <PhotoTile key={photo.id} className="h-44 w-full object-contain" photo={photo} />)}
-          </div>
+          <section className="space-y-4 border border-stone-200/60 shadow-sm rounded-xl bg-white p-5">
+            <h3 className="text-sm font-bold text-stone-700 tracking-wider uppercase border-b border-stone-100 pb-2">訪問タイムライン</h3>
+            {restaurant.visits && restaurant.visits.length > 0 ? (
+              <div className="relative border-l-2 border-stone-200/60 pl-6 ml-3 py-2 space-y-6">
+                {restaurant.visits.map((visit: Visit) => (
+                  <div key={visit.id} className="relative">
+                    {/* タイムラインのインジケータ */}
+                    <span className="absolute -left-[31px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white border-2 border-primary">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    </span>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-stone-400 tracking-wider uppercase">{visit.visited_at}</p>
+                      <h4 className="text-sm font-semibold text-stone-800">{visit.dish_name || "料理名未入力"}</h4>
+                      {visit.memo && <p className="text-xs leading-relaxed text-stone-500 font-light mt-1 max-w-xl">{visit.memo}</p>}
+                      <div className="pt-1">
+                        <Stars rating={visit.rating} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-stone-400 font-light py-4 text-center">訪問記録がまだありません。</p>
+            )}
+          </section>
+        </div>
+
+        <section className="space-y-4 border border-stone-200/60 shadow-sm rounded-xl bg-white p-5 h-fit">
+          <h3 className="text-sm font-bold text-stone-700 tracking-wider uppercase border-b border-stone-100 pb-2">写真ギャラリー</h3>
+          {restaurant.photos && restaurant.photos.length > 0 ? (
+            <div className="grid gap-3 grid-cols-2">
+              {restaurant.photos.map((photo) => (
+                <div key={photo.id} className="group relative overflow-hidden rounded-lg border border-stone-100 bg-stone-50 aspect-square">
+                  <PhotoTile className="size-full object-cover transition duration-500 group-hover:scale-105" photo={photo} />
+                  {photo.caption && (
+                    <div className="absolute inset-x-0 bottom-0 bg-black/60 p-2 text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300 truncate">
+                      {photo.caption}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-10 border border-dashed border-stone-200 rounded-lg text-stone-400 bg-stone-50/50">
+              <Camera className="size-6 mb-2 opacity-50" />
+              <p className="text-xs font-light">写真が登録されていません。</p>
+            </div>
+          )}
         </section>
       </div>
-      <section className="mt-5 space-y-3">
-        <h3 className="font-bold">訪問記録</h3>
-        <div className="grid gap-3 md:grid-cols-2">
-          {restaurant.visits?.map((visit: Visit) => (
-            <Card key={visit.id} className="space-y-2">
-              <p className="text-sm text-muted-foreground">{visit.visited_at}</p>
-              <p className="font-semibold">{visit.dish_name || "料理名なし"}</p>
-              {visit.memo && <p className="text-sm leading-6">{visit.memo}</p>}
-              <Stars rating={visit.rating} />
-            </Card>
-          ))}
-        </div>
-      </section>
     </FormShell>
   );
 }
@@ -1112,31 +1248,33 @@ function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; on
   }
 
   return (
-    <FormShell title="訪問記録追加" onBack={onBack}>
-      <form className="grid gap-4 md:grid-cols-2" onSubmit={save}>
-        <Field label="訪問日">
-          <Input type="date" value={form.visited_at} onChange={(event) => setForm({ ...form, visited_at: event.target.value })} />
-        </Field>
-        <Field label="食べた料理">
-          <Input value={form.dish_name} onChange={(event) => setForm({ ...form, dish_name: event.target.value })} />
-        </Field>
-        <Field label="評価 1-5">
-          <Input max="5" min="0.5" step="0.5" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
-        </Field>
-        <Field label="写真">
-          <Input accept="image/*" type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
-        </Field>
-        <Field className="md:col-span-2" label="感想">
-          <Textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
-        </Field>
-        <Field className="md:col-span-2" label="写真キャプション">
-          <Input value={form.caption} onChange={(event) => setForm({ ...form, caption: event.target.value })} />
-        </Field>
-        <Button className="md:col-span-2" disabled={busy} type="submit">
-          <Camera className="size-4" />
-          保存
-        </Button>
-      </form>
+    <FormShell title="訪問記録を追加" onBack={onBack}>
+      <Card className="border border-stone-200/60 bg-white rounded-xl p-6 shadow-sm">
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={save}>
+          <Field label="訪問日">
+            <Input className="text-stone-750 font-medium cursor-pointer" type="date" value={form.visited_at} onChange={(event) => setForm({ ...form, visited_at: event.target.value })} />
+          </Field>
+          <Field label="食べた料理">
+            <Input placeholder="例: 特製醤油ラーメン、マルゲリータ" value={form.dish_name} onChange={(event) => setForm({ ...form, dish_name: event.target.value })} />
+          </Field>
+          <Field label="評価 (1 - 5)">
+            <Input max="5" min="0.5" placeholder="星評価 (例: 4.0)" step="0.5" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
+          </Field>
+          <Field label="写真">
+            <Input className="bg-stone-50 border-stone-200/80 file:bg-stone-200/50 file:border-none file:text-xs file:font-semibold text-stone-700 cursor-pointer" accept="image/*" type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          </Field>
+          <Field className="md:col-span-2" label="感想・訪問メモ">
+            <Textarea placeholder="料理の味、サービス、混雑状況など..." value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+          </Field>
+          <Field className="md:col-span-2" label="写真のキャプション">
+            <Input placeholder="例: 絶品のチャーシュー、看板メニューのピザ" value={form.caption} onChange={(event) => setForm({ ...form, caption: event.target.value })} />
+          </Field>
+          <Button className="md:col-span-2 font-bold shadow-sm" disabled={busy} type="submit">
+            <Camera className="size-4" />
+            訪問記録を保存する
+          </Button>
+        </form>
+      </Card>
     </FormShell>
   );
 }
@@ -1159,19 +1297,19 @@ function AccountPanel({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <FormShell title="アカウント" onBack={onBack}>
-      <Card className="mx-auto max-w-xl space-y-4">
+    <FormShell title="アカウント設定" onBack={onBack}>
+      <Card className="mx-auto max-w-xl space-y-5 border border-stone-200/60 bg-white rounded-xl p-6 shadow-sm">
         <div>
-          <p className="text-sm text-muted-foreground">ログイン中</p>
-          <p className="font-semibold">{email}</p>
+          <p className="text-xs font-bold text-stone-400 tracking-wider uppercase">サインイン中のメールアドレス</p>
+          <p className="font-semibold text-stone-800 text-sm mt-0.5">{email}</p>
         </div>
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <Field label={isPasswordRecovery ? "新しいパスワード" : "パスワード変更"}>
-            <Input autoComplete="new-password" type="password" value={newPassword} onChange={(event) => onNewPasswordChange(event.target.value)} />
+        <form className="space-y-4 pt-2 border-t border-stone-100" onSubmit={onSubmit}>
+          <Field label={isPasswordRecovery ? "新しいパスワード" : "パスワードの変更"}>
+            <Input autoComplete="new-password" placeholder="新しいパスワード" type="password" value={newPassword} onChange={(event) => onNewPasswordChange(event.target.value)} />
           </Field>
-          <Button disabled={authBusy} type="submit">
+          <Button disabled={authBusy} type="submit" className="w-full sm:w-auto">
             <KeyRound className="size-4" />
-            更新
+            パスワードを更新
           </Button>
         </form>
       </Card>
@@ -1181,28 +1319,29 @@ function AccountPanel({
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <Card className="mx-auto mt-5 grid max-w-6xl place-items-center gap-3 py-12 text-center">
-      <div className="grid size-12 place-items-center rounded-lg bg-muted">
-        <ListFilter className="size-6 text-primary" />
+    <div className="mx-auto mt-8 grid max-w-6xl place-items-center gap-3 py-16 text-center border border-dashed border-stone-200 rounded-xl bg-stone-50/50">
+      <div className="grid size-12 place-items-center rounded-full bg-stone-100 text-stone-400">
+        <ListFilter className="size-5" />
       </div>
-      <h2 className="text-lg font-bold">記録がありません</h2>
-      <Button onClick={onAdd}>
+      <h2 className="text-sm font-bold text-stone-750">記録が見つかりませんでした</h2>
+      <p className="text-xs text-stone-400 font-light max-w-xs mb-2">最初の店舗を追加して、あなただけの美食記録を始めましょう。</p>
+      <Button onClick={onAdd} size="sm">
         <Plus className="size-4" />
-        店舗を追加
+        新しく店舗を追加
       </Button>
-    </Card>
+    </div>
   );
 }
 
 function FormShell({ children, onBack, title }: { children: React.ReactNode; onBack: () => void; title: string }) {
   return (
-    <section className="mx-auto max-w-6xl">
-      <div className="mb-4 flex items-center gap-3">
-        <Button size="sm" type="button" variant="ghost" onClick={onBack}>
+    <section className="mx-auto max-w-6xl space-y-6">
+      <div className="flex items-center gap-3">
+        <Button size="sm" type="button" variant="ghost" onClick={onBack} className="text-stone-500 hover:text-stone-900">
           <ArrowLeft className="size-4" />
           戻る
         </Button>
-        <h1 className="text-2xl font-bold">{title}</h1>
+        <h1 className="text-lg font-bold text-stone-850 tracking-tight">{title}</h1>
       </div>
       {children}
     </section>
@@ -1211,8 +1350,8 @@ function FormShell({ children, onBack, title }: { children: React.ReactNode; onB
 
 function Field({ children, className = "", label }: { children: React.ReactNode; className?: string; label: string }) {
   return (
-    <div className={`space-y-2 ${className}`}>
-      <Label>{label}</Label>
+    <div className={`space-y-1.5 ${className}`}>
+      <Label className="text-xs font-semibold text-stone-600">{label}</Label>
       {children}
     </div>
   );
@@ -1220,36 +1359,32 @@ function Field({ children, className = "", label }: { children: React.ReactNode;
 
 function MessageBanner({ message }: { message: Message }) {
   const tone = message.type === "error"
-    ? "border-red-200 bg-red-50 text-red-800"
+    ? "border-red-200/60 bg-red-50/50 text-red-800/90"
     : message.type === "success"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-      : "border-slate-200 bg-slate-50 text-slate-700";
+      ? "border-primary/20 bg-primary/5 text-primary"
+      : "border-stone-200/60 bg-stone-50/50 text-stone-700";
 
-  return <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${tone}`}>{message.text}</p>;
+  return <p className={`mb-4 rounded-lg border px-4 py-2.5 text-xs font-medium ${tone}`}>{message.text}</p>;
 }
 
-function PreviewStat({ className = "bg-white/80", label, value }: { className?: string; label: string; value: string }) {
-  return (
-    <div className={`rounded-lg border p-3 shadow-sm ${className}`}>
-      <p className="text-xs font-semibold uppercase tracking-wider opacity-70">{label}</p>
-      <p className="mt-1 font-bold">{value}</p>
-    </div>
-  );
-}
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <Card className="p-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
-    </Card>
+    <div className="border border-stone-200/60 bg-white rounded-xl p-4 shadow-sm">
+      <p className="text-[10px] font-bold text-stone-400 tracking-wider uppercase">{label}</p>
+      <p className="mt-1 text-2xl font-extrabold text-stone-800 tabular-nums leading-none">{value}</p>
+    </div>
   );
 }
 
 function FilterButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
     <button
-      className={`h-9 rounded-md px-3 text-sm font-semibold transition ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"}`}
+      className={`h-8 rounded-md px-4 text-xs font-semibold transition duration-200 ${
+        active 
+          ? "bg-white text-stone-800 shadow-sm border border-stone-200/40" 
+          : "text-stone-500 hover:text-stone-850 hover:bg-stone-200/20 border border-transparent"
+      }`}
       type="button"
       onClick={onClick}
     >
@@ -1260,9 +1395,9 @@ function FilterButton({ active, label, onClick }: { active: boolean; label: stri
 
 function Stars({ rating }: { rating: number | null }) {
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-semibold">
-      <Star className={`size-4 ${rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}`} />
-      {rating ?? "-"}
+    <span className="inline-flex items-center gap-1 text-xs font-semibold text-stone-700 tabular-nums">
+      <Star className={`size-3.5 ${rating ? "fill-amber-400 text-amber-500" : "text-stone-300"}`} />
+      <span>{rating !== null ? rating.toFixed(1) : "-"}</span>
     </span>
   );
 }
@@ -1273,8 +1408,8 @@ function RestaurantThumb({ name, photo }: { name: string; photo?: Photo }) {
   }
 
   return (
-    <div className="grid aspect-square size-24 shrink-0 place-items-center rounded-lg bg-[linear-gradient(135deg,hsl(169_72%_88%),hsl(42_96%_86%))] text-primary">
-      <Utensils className="size-7" aria-label={name} />
+    <div className="grid aspect-square size-24 shrink-0 place-items-center rounded-xl bg-stone-100 border border-stone-200/40 text-stone-400">
+      <Utensils className="size-6 stroke-[1.5]" aria-label={name} />
     </div>
   );
 }
@@ -1282,5 +1417,5 @@ function RestaurantThumb({ name, photo }: { name: string; photo?: Photo }) {
 function PhotoTile({ className = "aspect-square size-full object-cover", photo }: { className?: string; photo: Photo }) {
   const { data } = getSupabase().storage.from("food-photos").getPublicUrl(photo.storage_path);
 
-  return <img src={data.publicUrl} alt={photo.caption ?? "food photo"} className={`rounded-lg bg-muted ${className}`} />;
+  return <img src={data.publicUrl} alt={photo.caption ?? "food photo"} className={`rounded-xl bg-stone-50 ${className}`} />;
 }
