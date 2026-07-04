@@ -496,7 +496,7 @@ function AuthScreen({
         <section className="relative min-h-[280px] overflow-hidden bg-stone-900 text-white lg:min-h-full flex flex-col justify-between p-8 md:p-10">
           <img
             alt="BiteLogの食事記録イメージ"
-            className="absolute inset-0 size-full object-cover opacity-50 transition duration-[1200ms] hover:scale-105"
+            className="absolute inset-0 size-full object-cover opacity-50 transition duration-1000 hover:scale-105"
             src="/images/bitelog-hero.png"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-900/40 to-stone-800/20" />
