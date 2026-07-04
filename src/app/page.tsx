@@ -16,12 +16,14 @@ import {
   Plus,
   Search,
   Settings,
+  SlidersHorizontal,
   Star,
   Utensils,
   Upload,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getFriendlyAuthError, getPasswordValidation, getRedirectUrl } from "@/lib/auth";
+import { sortRestaurants, type SortMode } from "@/lib/restaurant-sort";
 import {
   getMogurecoImageImportSummary,
   parseMogurecoCsv,
@@ -65,6 +67,7 @@ export default function Home() {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | RestaurantStatus>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
   const [view, setView] = useState<View>("list");
   const [selected, setSelected] = useState<Restaurant | null>(null);
 
@@ -132,16 +135,20 @@ export default function Home() {
     return { total: restaurants.length, visited, wishlist, photos };
   }, [restaurants]);
 
-  const filtered = useMemo(() => restaurants.filter((restaurant) => {
-    const haystack = [
-      restaurant.name,
-      restaurant.area,
-      restaurant.genre,
-      ...(restaurant.tags?.map((tag: Tag) => tag.name) ?? []),
-    ].join(" ").toLowerCase();
+  const filtered = useMemo(() => {
+    const next = restaurants.filter((restaurant) => {
+      const haystack = [
+        restaurant.name,
+        restaurant.area,
+        restaurant.genre,
+        ...(restaurant.tags?.map((tag: Tag) => tag.name) ?? []),
+      ].join(" ").toLowerCase();
 
-    return (status === "all" || restaurant.status === status) && haystack.includes(query.toLowerCase());
-  }), [restaurants, query, status]);
+      return (status === "all" || restaurant.status === status) && haystack.includes(query.toLowerCase());
+    });
+
+    return sortRestaurants(next, sortMode);
+  }, [restaurants, query, status, sortMode]);
 
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -267,8 +274,16 @@ export default function Home() {
 
       {view === "list" && (
         <>
+          <DashboardHero stats={stats} />
           <DashboardSummary stats={stats} />
-          <ListControls query={query} status={status} onQueryChange={setQuery} onStatusChange={setStatus} />
+          <ListControls
+            query={query}
+            sortMode={sortMode}
+            status={status}
+            onQueryChange={setQuery}
+            onSortModeChange={setSortMode}
+            onStatusChange={setStatus}
+          />
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             {filtered.map((restaurant) => (
               <RestaurantCard
@@ -370,73 +385,90 @@ function AuthScreen({
   onSetup: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,hsl(168_76%_92%),transparent_34%),linear-gradient(135deg,hsl(210_24%_98%),hsl(44_100%_96%))] px-4 py-6 text-foreground">
-      <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-6xl items-center gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <section className="space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-lg border bg-white/80 px-3 py-2 text-sm font-semibold shadow-sm">
-            <ChefHat className="size-4 text-primary" />
-            もぐレコ
-          </div>
-          <div className="max-w-xl space-y-4">
-            <h1 className="text-4xl font-bold tracking-tight text-slate-950 md:text-6xl">
-              食べたい店と食べた記録を、ひとつの場所に。
-            </h1>
-            <p className="text-base leading-7 text-slate-600 md:text-lg">
-              同じメールアドレスならPCでもスマホでも同じアカウントで使えます。
-            </p>
-          </div>
-          <div className="grid max-w-2xl gap-3 sm:grid-cols-3">
-            <PreviewStat label="Wishlist" value="行きたい" />
-            <PreviewStat label="Visits" value="訪問記録" />
-            <PreviewStat label="Photos" value="写真" />
+    <main className="min-h-screen bg-[#f8f5ee] px-4 py-4 text-foreground md:py-6">
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-6xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-2xl shadow-slate-900/10 lg:min-h-[calc(100vh-3rem)] lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="relative min-h-[440px] overflow-hidden bg-slate-950 text-white lg:min-h-full">
+          <img
+            alt="朝の食卓とスマートフォンに表示されたもぐレコの食事記録イメージ"
+            className="absolute inset-0 size-full object-cover"
+            src="/images/mogureco-hero.png"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/86 via-slate-950/48 to-slate-950/10" />
+          <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-slate-950/80 to-transparent" />
+          <div className="relative flex min-h-[440px] flex-col justify-between p-6 sm:p-8 lg:min-h-full lg:p-10">
+            <div className="inline-flex w-fit items-center gap-2 rounded-lg border border-white/20 bg-white/14 px-3 py-2 text-sm font-semibold shadow-sm backdrop-blur">
+              <ChefHat className="size-4 text-amber-300" />
+              もぐレコ
+            </div>
+            <div className="max-w-xl space-y-4 rounded-xl bg-slate-950/56 p-3 backdrop-blur-sm sm:space-y-5 sm:bg-transparent sm:p-0 sm:backdrop-blur-0">
+              <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl md:text-6xl md:leading-[0.98]">
+                食べたい店と食べた記録を、写真ごと残す。
+              </h1>
+              <p className="max-w-lg text-sm leading-7 text-white/88 sm:text-base md:text-lg">
+                モグレコCSVと写真フォルダを取り込み、行った店・行きたい店・訪問メモをひとつの画面で見返せます。
+              </p>
+              <div className="grid max-w-lg grid-cols-3 gap-2">
+                <PreviewStat className="border-white/15 bg-white/14 text-white backdrop-blur" label="Import" value="CSV" />
+                <PreviewStat className="border-white/15 bg-white/14 text-white backdrop-blur" label="Photos" value="画像" />
+                <PreviewStat className="border-white/15 bg-white/14 text-white backdrop-blur" label="Places" value="店舗" />
+              </div>
+            </div>
           </div>
         </section>
 
-        <Card className="mx-auto w-full max-w-md border-slate-200 bg-white/95 p-5 shadow-2xl shadow-slate-900/10">
-          <div className="mb-5 flex rounded-lg bg-slate-100 p-1">
-            <button
-              className={`h-10 flex-1 rounded-md text-sm font-semibold transition ${authMode === "login" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
-              type="button"
-              onClick={() => onModeChange("login")}
-            >
-              ログイン
-            </button>
-            <button
-              className={`h-10 flex-1 rounded-md text-sm font-semibold transition ${authMode === "setup" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
-              type="button"
-              onClick={() => onModeChange("setup")}
-            >
-              パスワード設定
-            </button>
+        <section className="flex items-center bg-[linear-gradient(145deg,#fffaf0,#f0fbf6)] px-5 py-8 sm:px-8 lg:px-10">
+          <div className="w-full">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-lg border bg-white/80 px-3 py-2 text-sm font-semibold shadow-sm">
+              <ChefHat className="size-4 text-primary" />
+              もぐレコ
+            </div>
+            <Card className="mx-auto w-full max-w-md border-slate-200 bg-white/95 p-5 shadow-xl shadow-slate-900/10">
+              <div className="mb-5 flex rounded-lg bg-slate-100 p-1">
+                <button
+                  className={`h-10 flex-1 rounded-md text-sm font-semibold transition ${authMode === "login" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
+                  type="button"
+                  onClick={() => onModeChange("login")}
+                >
+                  ログイン
+                </button>
+                <button
+                  className={`h-10 flex-1 rounded-md text-sm font-semibold transition ${authMode === "setup" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
+                  type="button"
+                  onClick={() => onModeChange("setup")}
+                >
+                  パスワード設定
+                </button>
+              </div>
+
+              {message && <MessageBanner message={message} />}
+
+              {authMode === "login" ? (
+                <form className="space-y-4" onSubmit={onLogin}>
+                  <Field label="メールアドレス">
+                    <Input autoComplete="email" type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} />
+                  </Field>
+                  <Field label="パスワード">
+                    <Input autoComplete="current-password" type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} />
+                  </Field>
+                  <Button className="w-full" disabled={authBusy} type="submit">
+                    <Lock className="size-4" />
+                    ログイン
+                  </Button>
+                </form>
+              ) : (
+                <form className="space-y-4" onSubmit={onSetup}>
+                  <Field label="メールアドレス">
+                    <Input autoComplete="email" type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} />
+                  </Field>
+                  <Button className="w-full" disabled={authBusy} type="submit">
+                    <KeyRound className="size-4" />
+                    設定メールを送る
+                  </Button>
+                </form>
+              )}
+            </Card>
           </div>
-
-          {message && <MessageBanner message={message} />}
-
-          {authMode === "login" ? (
-            <form className="space-y-4" onSubmit={onLogin}>
-              <Field label="メールアドレス">
-                <Input autoComplete="email" type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} />
-              </Field>
-              <Field label="パスワード">
-                <Input autoComplete="current-password" type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} />
-              </Field>
-              <Button className="w-full" disabled={authBusy} type="submit">
-                <Lock className="size-4" />
-                ログイン
-              </Button>
-            </form>
-          ) : (
-            <form className="space-y-4" onSubmit={onSetup}>
-              <Field label="メールアドレス">
-                <Input autoComplete="email" type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} />
-              </Field>
-              <Button className="w-full" disabled={authBusy} type="submit">
-                <KeyRound className="size-4" />
-                設定メールを送る
-              </Button>
-            </form>
-          )}
-        </Card>
+        </section>
       </div>
     </main>
   );
@@ -780,6 +812,46 @@ function formatBytes(bytes: number) {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
+function DashboardHero({ stats }: { stats: { total: number; visited: number; wishlist: number; photos: number } }) {
+  return (
+    <section className="mx-auto mb-4 grid max-w-6xl overflow-hidden rounded-lg border bg-white shadow-sm md:grid-cols-[1fr_19rem]">
+      <div className="space-y-4 p-5 md:p-6">
+        <div className="inline-flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
+          <Camera className="size-4" />
+          もぐレコ取り込み
+        </div>
+        <div className="max-w-2xl space-y-2">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">写真つきの訪問記録を、まとめて見返す。</h2>
+          <p className="text-sm leading-6 text-muted-foreground md:text-base">
+            CSVの店舗情報と写真フォルダを合わせて取り込み、訪問日・評価・写真を店舗ごとに整理します。
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <HeroMetric label="店舗" value={stats.total} />
+          <HeroMetric label="訪問済み" value={stats.visited} />
+          <HeroMetric label="写真" value={stats.photos} />
+        </div>
+      </div>
+      <div className="relative min-h-44 md:min-h-full">
+        <img
+          alt="もぐレコの食事記録をイメージした朝食とスマートフォン"
+          className="absolute inset-0 size-full object-cover"
+          src="/images/mogureco-hero.png"
+        />
+      </div>
+    </section>
+  );
+}
+
+function HeroMetric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border bg-slate-50 px-3 py-2">
+      <span className="block text-xs font-semibold text-muted-foreground">{label}</span>
+      <strong className="text-lg text-slate-950">{value}</strong>
+    </div>
+  );
+}
+
 function DashboardSummary({ stats }: { stats: { total: number; visited: number; wishlist: number; photos: number } }) {
   return (
     <section className="mx-auto grid max-w-6xl grid-cols-2 gap-3 md:grid-cols-4">
@@ -793,21 +865,38 @@ function DashboardSummary({ stats }: { stats: { total: number; visited: number; 
 
 function ListControls({
   query,
+  sortMode,
   status,
   onQueryChange,
+  onSortModeChange,
   onStatusChange,
 }: {
   query: string;
+  sortMode: SortMode;
   status: "all" | RestaurantStatus;
   onQueryChange: (query: string) => void;
+  onSortModeChange: (sortMode: SortMode) => void;
   onStatusChange: (status: "all" | RestaurantStatus) => void;
 }) {
   return (
-    <section className="mx-auto mt-4 grid max-w-6xl gap-3 md:grid-cols-[1fr_auto]">
+    <section className="mx-auto mt-4 grid max-w-6xl gap-3 md:grid-cols-[1fr_auto_auto]">
       <div className="relative">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-10" placeholder="店名・エリア・ジャンル・タグで検索" value={query} onChange={(event) => onQueryChange(event.target.value)} />
       </div>
+      <label className="relative block">
+        <SlidersHorizontal className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <select
+          aria-label="並び替え"
+          className="h-11 w-full rounded-lg border border-input bg-white pl-10 pr-9 text-sm font-semibold shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring md:w-36"
+          value={sortMode}
+          onChange={(event) => onSortModeChange(event.target.value as SortMode)}
+        >
+          <option value="newest">新着順</option>
+          <option value="rating">星が高い順</option>
+          <option value="visitDate">訪問日順</option>
+        </select>
+      </label>
       <div className="grid grid-cols-3 gap-2 rounded-lg border bg-white p-1">
         <FilterButton active={status === "all"} label="すべて" onClick={() => onStatusChange("all")} />
         <FilterButton active={status === "visited"} label="行った" onClick={() => onStatusChange("visited")} />
@@ -1139,11 +1228,11 @@ function MessageBanner({ message }: { message: Message }) {
   return <p className={`mb-4 rounded-lg border px-3 py-2 text-sm ${tone}`}>{message.text}</p>;
 }
 
-function PreviewStat({ label, value }: { label: string; value: string }) {
+function PreviewStat({ className = "bg-white/80", label, value }: { className?: string; label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-white/80 p-3 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 font-bold text-slate-950">{value}</p>
+    <div className={`rounded-lg border p-3 shadow-sm ${className}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider opacity-70">{label}</p>
+      <p className="mt-1 font-bold">{value}</p>
     </div>
   );
 }
