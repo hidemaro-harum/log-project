@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AIグルメ記録",
-  description: "個人用グルメ記録PWA",
+  title: "もぐレコ",
+  description: "個人用もぐレコPWA",
   icons: { icon: "/icon.svg" },
 };
 export const viewport: Viewport = { themeColor: "#f97316", width: "device-width", initialScale: 1 };

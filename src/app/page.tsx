@@ -6,6 +6,8 @@ import {
   ArrowLeft,
   Camera,
   ChefHat,
+  FolderOpen,
+  Image as ImageIcon,
   KeyRound,
   ListFilter,
   Lock,
@@ -20,7 +22,12 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getFriendlyAuthError, getPasswordValidation, getRedirectUrl } from "@/lib/auth";
-import { parseMogurecoCsv, type MogurecoImportRecord } from "@/lib/mogureco-import";
+import {
+  getMogurecoImageImportSummary,
+  parseMogurecoCsv,
+  type MogurecoImageImportSummary,
+  type MogurecoImportRecord,
+} from "@/lib/mogureco-import";
 import type { Photo, Restaurant, RestaurantStatus, Tag, Visit } from "@/types/database";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -212,7 +219,7 @@ export default function Home() {
     return (
       <Shell>
         <Card className="space-y-3">
-          <h1 className="text-2xl font-bold">AIグルメ記録</h1>
+          <h1 className="text-2xl font-bold">もぐレコ</h1>
           <p className="text-sm text-muted-foreground">
             Supabase の公開環境変数が未設定です。Vercel に NEXT_PUBLIC_SUPABASE_URL と NEXT_PUBLIC_SUPABASE_ANON_KEY を設定してください。
           </p>
@@ -368,7 +375,7 @@ function AuthScreen({
         <section className="space-y-6">
           <div className="inline-flex items-center gap-2 rounded-lg border bg-white/80 px-3 py-2 text-sm font-semibold shadow-sm">
             <ChefHat className="size-4 text-primary" />
-            AIグルメ記録
+            もぐレコ
           </div>
           <div className="max-w-xl space-y-4">
             <h1 className="text-4xl font-bold tracking-tight text-slate-950 md:text-6xl">
@@ -456,7 +463,7 @@ function AppHeader({
         </div>
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">AI Gourmet Log</p>
-          <h1 className="truncate text-lg font-bold">グルメ記録</h1>
+          <h1 className="truncate text-lg font-bold">もぐレコ</h1>
         </div>
       </div>
       <div className="flex items-center gap-1">
@@ -493,10 +500,12 @@ function MogurecoImportPanel({
   onImported: () => void;
 }) {
   const [records, setRecords] = useState<MogurecoImportRecord[]>([]);
+  const [imageSummary, setImageSummary] = useState<MogurecoImageImportSummary<File> | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
 
   async function readCsv(file: File | undefined) {
     setResult("");
@@ -510,18 +519,28 @@ function MogurecoImportPanel({
     setErrors(parsed.errors);
   }
 
+  function readImageFolder(files: FileList | null) {
+    setResult("");
+    setUploadProgress({ done: 0, total: 0 });
+    setImageSummary(files?.length ? getMogurecoImageImportSummary(Array.from(files)) : null);
+  }
+
   async function importRecords() {
     const client = getSupabase();
     const { data: user } = await client.auth.getUser();
     const userId = user.user?.id;
-    if (!userId || !records.length) return;
+    if (!userId || (!records.length && !imageSummary?.files.length)) return;
 
     setBusy(true);
     setResult("");
+    setUploadProgress({ done: 0, total: imageSummary?.files.length ?? 0 });
 
     const existing = new Map(restaurants.map((restaurant) => [restaurantKey(restaurant.name, restaurant.area), restaurant]));
+    const byName = new Map(restaurants.map((restaurant) => [normalizeRestaurantName(restaurant.name), restaurant]));
     let imported = 0;
     let skippedVisits = 0;
+    let uploadedPhotos = 0;
+    let skippedPhotos = 0;
 
     for (const record of records) {
       const key = restaurantKey(record.name, record.address);
@@ -549,6 +568,7 @@ function MogurecoImportPanel({
 
         restaurant = data as Restaurant;
         existing.set(key, restaurant);
+        byName.set(normalizeRestaurantName(restaurant.name), restaurant);
       } else {
         await client
           .from("restaurants")
@@ -559,23 +579,30 @@ function MogurecoImportPanel({
             updated_at: new Date().toISOString(),
           })
           .eq("id", restaurant.id);
+        byName.set(normalizeRestaurantName(restaurant.name), restaurant);
       }
 
       const alreadyVisited = record.visitedAt ? restaurant.visits?.some((visit) => visit.visited_at === record.visitedAt) : false;
       if (record.visitedAt && !alreadyVisited) {
-        const { error } = await client.from("visits").insert({
-          user_id: userId,
-          restaurant_id: restaurant.id,
-          visited_at: record.visitedAt,
-          dish_name: null,
-          rating: record.rating,
-          memo: record.memo || null,
-        });
+        const { data: visit, error } = await client
+          .from("visits")
+          .insert({
+            user_id: userId,
+            restaurant_id: restaurant.id,
+            visited_at: record.visitedAt,
+            dish_name: null,
+            rating: record.rating,
+            memo: record.memo || null,
+          })
+          .select()
+          .single();
 
         if (error) {
           setErrors((current) => [...current, `${record.name}: ${error.message}`]);
           continue;
         }
+
+        restaurant.visits = [...(restaurant.visits ?? []), visit as Visit];
       } else if (alreadyVisited) {
         skippedVisits += 1;
       }
@@ -596,16 +623,76 @@ function MogurecoImportPanel({
       imported += 1;
     }
 
+    if (imageSummary?.files.length) {
+      for (const imageFile of imageSummary.files) {
+        const restaurant = byName.get(normalizeRestaurantName(imageFile.restaurantName));
+        if (!restaurant) {
+          skippedPhotos += 1;
+          setUploadProgress((current) => ({ ...current, done: current.done + 1 }));
+          continue;
+        }
+
+        const visitId = imageFile.visitedAt
+          ? restaurant.visits?.find((visit) => visit.visited_at === imageFile.visitedAt)?.id ?? null
+          : null;
+        const storagePath = `${userId}/${restaurant.id}/mogureco/${crypto.randomUUID()}-${sanitizeStorageFileName(imageFile.file.name)}`;
+        const { error: uploadError } = await client.storage.from("food-photos").upload(storagePath, imageFile.file, {
+          cacheControl: "31536000",
+          upsert: false,
+        });
+
+        if (uploadError) {
+          skippedPhotos += 1;
+          setErrors((current) => [...current, `${imageFile.relativePath}: ${uploadError.message}`]);
+          setUploadProgress((current) => ({ ...current, done: current.done + 1 }));
+          continue;
+        }
+
+        const { error: photoError } = await client.from("photos").insert({
+          user_id: userId,
+          restaurant_id: restaurant.id,
+          visit_id: visitId,
+          storage_path: storagePath,
+          caption: imageFile.file.name,
+        });
+
+        if (photoError) {
+          skippedPhotos += 1;
+          setErrors((current) => [...current, `${imageFile.relativePath}: ${photoError.message}`]);
+        } else {
+          uploadedPhotos += 1;
+        }
+        setUploadProgress((current) => ({ ...current, done: current.done + 1 }));
+      }
+    }
+
     setBusy(false);
-    setResult(`${imported}件をインポートしました。${skippedVisits ? ` 重複する訪問日は${skippedVisits}件スキップしました。` : ""}`);
+    setResult([
+      `${imported}件の店舗/訪問をインポートしました。`,
+      uploadedPhotos ? `${uploadedPhotos}枚の画像をアップロードしました。` : "",
+      skippedVisits ? `重複する訪問日は${skippedVisits}件スキップしました。` : "",
+      skippedPhotos ? `画像は${skippedPhotos}枚スキップしました。` : "",
+    ].filter(Boolean).join(" "));
     onImported();
   }
 
+  const canImport = records.length > 0 || (imageSummary?.files.length ?? 0) > 0;
+  const folderInputProps = { webkitdirectory: "", directory: "" };
+
   return (
-    <FormShell title="モグレコCSVインポート" onBack={onBack}>
+    <FormShell title="もぐレコCSVインポート" onBack={onBack}>
       <Card className="space-y-4">
         <Field label="CSVファイル">
           <Input accept=".csv,text/csv" type="file" onChange={(event) => void readCsv(event.target.files?.[0])} />
+        </Field>
+        <Field label="画像フォルダ">
+          <Input
+            {...folderInputProps}
+            accept="image/*"
+            type="file"
+            multiple
+            onChange={(event) => readImageFolder(event.target.files)}
+          />
         </Field>
         {fileName && (
           <div className="grid gap-2 rounded-lg bg-muted p-3 text-sm md:grid-cols-3">
@@ -617,6 +704,18 @@ function MogurecoImportPanel({
         {errors.length > 0 && (
           <div className="max-h-36 overflow-auto rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             {errors.map((error) => <p key={error}>{error}</p>)}
+          </div>
+        )}
+        {imageSummary && (
+          <div className="grid gap-2 rounded-lg border bg-white p-3 text-sm md:grid-cols-4">
+            <span className="flex items-center gap-2 font-semibold">
+              <FolderOpen className="size-4 text-primary" />
+              画像フォルダ
+            </span>
+            <span>{imageSummary.files.length}枚</span>
+            <span>{imageSummary.restaurantCount}店舗</span>
+            <span>{formatBytes(imageSummary.totalBytes)}</span>
+            {imageSummary.skippedCount > 0 && <span className="text-amber-700 md:col-span-4">画像以外のファイルを{imageSummary.skippedCount}件スキップします。</span>}
           </div>
         )}
         {records.length > 0 && (
@@ -639,8 +738,22 @@ function MogurecoImportPanel({
             </div>
           </div>
         )}
+        {busy && uploadProgress.total > 0 && (
+          <div className="space-y-2 rounded-lg bg-muted p-3 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 font-semibold">
+                <ImageIcon className="size-4 text-primary" />
+                画像アップロード中
+              </span>
+              <span>{uploadProgress.done} / {uploadProgress.total}</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white">
+              <div className="h-full bg-primary transition-all" style={{ width: `${uploadProgress.total ? (uploadProgress.done / uploadProgress.total) * 100 : 0}%` }} />
+            </div>
+          </div>
+        )}
         {result && <MessageBanner message={{ text: result, type: "success" }} />}
-        <Button disabled={busy || records.length === 0} type="button" onClick={importRecords}>
+        <Button disabled={busy || !canImport} type="button" onClick={importRecords}>
           <Upload className="size-4" />
           インポート
         </Button>
@@ -651,6 +764,20 @@ function MogurecoImportPanel({
 
 function restaurantKey(name: string, area: string | null) {
   return `${name.trim()}\u0000${(area ?? "").trim()}`;
+}
+
+function normalizeRestaurantName(name: string) {
+  return name.trim().normalize("NFKC").toLowerCase();
+}
+
+function sanitizeStorageFileName(fileName: string) {
+  return fileName.normalize("NFKC").replace(/[^\w.-]+/g, "-");
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
 function DashboardSummary({ stats }: { stats: { total: number; visited: number; wishlist: number; photos: number } }) {

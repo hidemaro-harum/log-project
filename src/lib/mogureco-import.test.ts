@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseMogurecoCsv } from "./mogureco-import.ts";
+import { getMogurecoImageImportSummary, parseMogurecoCsv } from "./mogureco-import.ts";
 
 test("parses Mogureco visited CSV rows into import records", () => {
   const csv = "\uFEFF店舗名,訪問日,評価,メモ,タグ,住所\n" +
@@ -79,5 +79,40 @@ test("accepts Mogureco half-star minimum ratings and missing visit dates", () =>
       },
     ],
     errors: [],
+  });
+});
+
+test("groups Mogureco image files by restaurant folder and filename date", () => {
+  const files = [
+    { name: "2024-06-15_20240615155009051.jpeg", size: 839000, type: "image/jpeg", webkitRelativePath: "行った_20260704203727_1/100圓ラーメン/2024-06-15_20240615155009051.jpeg" },
+    { name: "2024-06-15_20240615155010467.jpeg", size: 826000, type: "image/jpeg", webkitRelativePath: "行った_20260704203727_1/100圓ラーメン/2024-06-15_20240615155010467.jpeg" },
+    { name: "memo.txt", size: 200, type: "text/plain", webkitRelativePath: "行った_20260704203727_1/100圓ラーメン/memo.txt" },
+    { name: "2024-07-01_20240701120000000.png", size: 120000, type: "image/png", webkitRelativePath: "ラーメン二郎/2024-07-01_20240701120000000.png" },
+  ];
+
+  assert.deepEqual(getMogurecoImageImportSummary(files), {
+    files: [
+      {
+        file: files[0],
+        restaurantName: "100圓ラーメン",
+        visitedAt: "2024-06-15",
+        relativePath: "行った_20260704203727_1/100圓ラーメン/2024-06-15_20240615155009051.jpeg",
+      },
+      {
+        file: files[1],
+        restaurantName: "100圓ラーメン",
+        visitedAt: "2024-06-15",
+        relativePath: "行った_20260704203727_1/100圓ラーメン/2024-06-15_20240615155010467.jpeg",
+      },
+      {
+        file: files[3],
+        restaurantName: "ラーメン二郎",
+        visitedAt: "2024-07-01",
+        relativePath: "ラーメン二郎/2024-07-01_20240701120000000.png",
+      },
+    ],
+    totalBytes: 1785000,
+    restaurantCount: 2,
+    skippedCount: 1,
   });
 });

@@ -1,10 +1,14 @@
 {
+  "name": "mogurepo-style-word-app",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "check": "node --check scripts/check-html.mjs",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run check && node --experimental-strip-types --test src/lib/*.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.3",

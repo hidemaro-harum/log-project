@@ -12,7 +12,29 @@ export type MogurecoImportParseResult = {
   errors: string[];
 };
 
+export type MogurecoImageLikeFile = {
+  name: string;
+  size: number;
+  type: string;
+  webkitRelativePath?: string;
+};
+
+export type MogurecoImageImportFile<TFile extends MogurecoImageLikeFile = MogurecoImageLikeFile> = {
+  file: TFile;
+  restaurantName: string;
+  visitedAt: string | null;
+  relativePath: string;
+};
+
+export type MogurecoImageImportSummary<TFile extends MogurecoImageLikeFile = MogurecoImageLikeFile> = {
+  files: MogurecoImageImportFile<TFile>[];
+  totalBytes: number;
+  restaurantCount: number;
+  skippedCount: number;
+};
+
 const REQUIRED_HEADERS = ["店舗名", "訪問日", "評価", "メモ", "タグ", "住所"] as const;
+const IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "heic", "heif"]);
 
 export function parseMogurecoCsv(csvText: string): MogurecoImportParseResult {
   const rows = parseCsvRows(csvText.replace(/^\uFEFF/, ""));
@@ -71,6 +93,37 @@ export function parseMogurecoCsv(csvText: string): MogurecoImportParseResult {
   return { records, errors };
 }
 
+export function getMogurecoImageImportSummary<TFile extends MogurecoImageLikeFile>(files: Iterable<TFile>): MogurecoImageImportSummary<TFile> {
+  const imageFiles: MogurecoImageImportFile<TFile>[] = [];
+  let skippedCount = 0;
+
+  for (const file of files) {
+    const relativePath = file.webkitRelativePath || file.name;
+    const pathParts = relativePath.split("/").filter(Boolean);
+    const fileName = pathParts.at(-1) ?? file.name;
+    const parentFolder = pathParts.length >= 2 ? pathParts.at(-2) : "";
+
+    if (!isImageFile(file, fileName) || !parentFolder) {
+      skippedCount += 1;
+      continue;
+    }
+
+    imageFiles.push({
+      file,
+      restaurantName: parentFolder,
+      visitedAt: getDateFromImageName(fileName),
+      relativePath,
+    });
+  }
+
+  return {
+    files: imageFiles,
+    totalBytes: imageFiles.reduce((sum, item) => sum + item.file.size, 0),
+    restaurantCount: new Set(imageFiles.map((item) => item.restaurantName)).size,
+    skippedCount,
+  };
+}
+
 function valueAt(row: string[], index: number) {
   return (row[index] ?? "").trim();
 }
@@ -84,6 +137,17 @@ function parseRating(value: string) {
 
 function splitTags(value: string) {
   return value.split(/[、,\s]+/).map((tag) => tag.trim()).filter(Boolean);
+}
+
+function isImageFile(file: MogurecoImageLikeFile, fileName: string) {
+  if (file.type.startsWith("image/")) return true;
+  const extension = fileName.split(".").pop()?.toLowerCase();
+  return extension ? IMAGE_EXTENSIONS.has(extension) : false;
+}
+
+function getDateFromImageName(fileName: string) {
+  const match = /^(\d{4}-\d{2}-\d{2})_/.exec(fileName);
+  return match?.[1] ?? null;
 }
 
 function parseCsvRows(csvText: string) {
