@@ -3,6 +3,8 @@ node_modules
 .env*.local
 .env
 .vercel
+.playwright-cli
+output
 .DS_Store
 tsconfig.tsbuildinfo
 .env*

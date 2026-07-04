@@ -15,10 +15,10 @@
 - `restaurant_tags`: 店舗とタグの中間テーブル。
 
 ## Supabase SQL
-`supabase/schema.sql`をSupabase SQL Editorで実行する。AuthはEmail OTPを想定し、Storage bucket `food-photos`を作成する。
+`supabase/schema.sql`をSupabase SQL Editorで実行する。Authはメールアドレス + パスワードを基本にし、パスワード設定・再設定メールのリダイレクト先をVercel本番URLへ向ける。Storage bucket `food-photos`を作成する。
 
 ## 画面設計
-1. ログイン画面: メールアドレス入力、Magic Link送信。
+1. ログイン画面: メールアドレス + パスワードログイン、パスワード設定メール送信。
 2. 店舗一覧: 検索、分類フィルタ、カード一覧、追加FAB。
 3. 店舗追加: 店名、エリア、ジャンル、分類、評価、タグ、メモ。
 4. 店舗詳細: 基本情報、訪問履歴、写真グリッド。
