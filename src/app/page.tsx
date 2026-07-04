@@ -23,6 +23,7 @@ import {
 import { createClient } from "@/lib/supabase";
 import { getFriendlyAuthError, getPasswordValidation, getRedirectUrl } from "@/lib/auth";
 import { createVisitPhotoUploads, sanitizeStorageFileName } from "@/lib/photo-upload";
+import { deleteRestaurantWithAssets } from "@/lib/restaurant-delete";
 import { getDuplicateRestaurantCleanupPlan } from "@/lib/restaurant-dedupe";
 import { sortRestaurants, type SortMode } from "@/lib/restaurant-sort";
 import {
@@ -65,6 +66,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
   const [cleanupBusy, setCleanupBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [query, setQuery] = useState("");
@@ -292,6 +294,23 @@ export default function Home() {
     await loadRestaurants();
   }
 
+  async function deleteRestaurant(restaurant: Restaurant) {
+    setDeleteBusy(true);
+    setMessage(null);
+
+    try {
+      await deleteRestaurantWithAssets(getSupabase(), restaurant);
+      setSelected(null);
+      setView("list");
+      setMessage({ text: `${restaurant.name}を削除しました。`, type: "success" });
+      await loadRestaurants();
+    } catch (error) {
+      setMessage({ text: error instanceof Error ? error.message : "店舗を削除できませんでした。", type: "error" });
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   if (!supabase) {
     return (
       <Shell>
@@ -409,9 +428,11 @@ export default function Home() {
       {view === "detail" && selected && (
         <div className="animate-in">
           <RestaurantDetail
+            deleteBusy={deleteBusy}
             restaurant={selected}
             onAddVisit={() => setView("visit")}
             onBack={() => setView("list")}
+            onDelete={() => void deleteRestaurant(selected)}
           />
         </div>
       )}
@@ -853,7 +874,21 @@ function StatusBadge({ status }: { status: RestaurantStatus }) {
    Restaurant Detail
    ======================================== */
 
-function RestaurantDetail({ restaurant, onBack, onAddVisit }: { restaurant: Restaurant; onBack: () => void; onAddVisit: () => void }) {
+function RestaurantDetail({
+  deleteBusy,
+  restaurant,
+  onBack,
+  onAddVisit,
+  onDelete,
+}: {
+  deleteBusy: boolean;
+  restaurant: Restaurant;
+  onBack: () => void;
+  onAddVisit: () => void;
+  onDelete: () => void;
+}) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
   return (
     <FormShell title={restaurant.name} onBack={onBack}>
       <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
@@ -873,11 +908,55 @@ function RestaurantDetail({ restaurant, onBack, onAddVisit }: { restaurant: Rest
                   <StatusBadge status={restaurant.status} />
                 </div>
               </div>
-              <Button size="sm" onClick={onAddVisit} className="rounded-xl shadow-sm press-effect text-xs">
-                <Utensils className="size-3.5" />
-                訪問記録を追加
-              </Button>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="rounded-xl border border-red-100 bg-red-50 text-xs text-red-600 shadow-none hover:bg-red-100"
+                >
+                  <Trash2 className="size-3.5" />
+                  削除
+                </Button>
+                <Button size="sm" onClick={onAddVisit} className="rounded-xl shadow-sm press-effect text-xs">
+                  <Utensils className="size-3.5" />
+                  訪問記録を追加
+                </Button>
+              </div>
             </div>
+
+            {confirmingDelete && (
+              <div className="rounded-xl border border-red-100 bg-red-50/80 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-red-700">この店舗を削除しますか？</p>
+                    <p className="text-xs leading-relaxed text-red-500">
+                      訪問記録、写真の登録情報、タグ紐づけも削除されます。この操作は元に戻せません。
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      type="button"
+                      disabled={deleteBusy}
+                      onClick={() => setConfirmingDelete(false)}
+                      className="rounded-xl bg-white text-stone-600 shadow-none hover:bg-stone-50"
+                    >
+                      キャンセル
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      disabled={deleteBusy}
+                      onClick={onDelete}
+                      className="rounded-xl bg-red-600 text-white shadow-sm hover:bg-red-700"
+                    >
+                      <Trash2 className="size-3.5" />
+                      {deleteBusy ? "削除中..." : "削除する"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {restaurant.memo && (
               <div className="rounded-xl bg-stone-50/80 p-4">
