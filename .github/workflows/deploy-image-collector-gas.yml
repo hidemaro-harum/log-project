@@ -1,0 +1,42 @@
+name: Deploy image collector GAS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "image-collector/**"
+      - ".github/workflows/deploy-image-collector-gas.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: image-collector
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run tests
+        run: node --test test/*.test.js
+
+      - name: Check JavaScript syntax
+        run: for f in src/*.js test/*.js; do node --check "$f" || exit 1; done
+
+      - name: Install clasp
+        run: npm install --global @google/clasp@3.3.0
+
+      - name: Restore clasp credentials
+        run: printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+
+      - name: Push to Apps Script
+        run: clasp push --force
