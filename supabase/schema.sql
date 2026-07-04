@@ -68,6 +68,13 @@ create policy "own photos" on public.photos for all using (auth.uid() = user_id)
 create policy "own tags" on public.tags for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own restaurant tags" on public.restaurant_tags for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+grant usage on schema public to anon, authenticated;
+grant all on public.restaurants to authenticated;
+grant all on public.visits to authenticated;
+grant all on public.photos to authenticated;
+grant all on public.tags to authenticated;
+grant all on public.restaurant_tags to authenticated;
+
 insert into storage.buckets (id, name, public) values ('food-photos', 'food-photos', true) on conflict (id) do nothing;
 create policy "own food photo uploads" on storage.objects for insert with check (bucket_id = 'food-photos' and auth.uid()::text = (storage.foldername(name))[1]);
 create policy "own food photo reads" on storage.objects for select using (bucket_id = 'food-photos' and auth.uid()::text = (storage.foldername(name))[1]);
