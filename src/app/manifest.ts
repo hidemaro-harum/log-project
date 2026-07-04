@@ -1,8 +1,8 @@
 import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "もぐレコ",
-    short_name: "もぐレコ",
+    name: "BiteLog",
+    short_name: "BiteLog",
     description: "行った店・行きたい店・食べた料理を写真と一緒に記録する個人用PWA",
     start_url: "/",
     display: "standalone",

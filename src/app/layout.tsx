@@ -15,8 +15,8 @@ const notoSans = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "もぐレコ",
-  description: "写真と一緒に食事の記憶を残す、個人用もぐレコPWA",
+  title: "BiteLog",
+  description: "写真と一緒に食事の記憶を残す、個人用BiteLog PWA",
   icons: {
     icon: [
       { url: "/favicon.png", sizes: "32x32", type: "image/png" },

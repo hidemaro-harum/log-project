@@ -1,5 +1,5 @@
 {
-  "name": "mogurepo-style-word-app",
+  "name": "bitelog",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -298,7 +298,7 @@ export default function Home() {
         <Card className="space-y-3">
           <div className="flex items-center gap-3">
             <BrandMark className="size-10 rounded-xl" />
-            <h1 className="text-2xl font-bold">もぐレコ</h1>
+            <h1 className="text-2xl font-bold">BiteLog</h1>
           </div>
           <p className="text-sm text-muted-foreground">
             Supabase の公開環境変数が未設定です。Vercel に NEXT_PUBLIC_SUPABASE_URL と NEXT_PUBLIC_SUPABASE_ANON_KEY を設定してください。
@@ -495,16 +495,16 @@ function AuthScreen({
         {/* 左側: ビジュアル */}
         <section className="relative min-h-[280px] overflow-hidden bg-stone-900 text-white lg:min-h-full flex flex-col justify-between p-8 md:p-10">
           <img
-            alt="もぐレコ背景"
-            className="absolute inset-0 size-full object-cover opacity-50 transition duration-[1.2s] hover:scale-105"
-            src="/images/mogureco-hero.png"
+            alt="BiteLogの食事記録イメージ"
+            className="absolute inset-0 size-full object-cover opacity-50 transition duration-[1200ms] hover:scale-105"
+            src="/images/bitelog-hero.png"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950/90 via-stone-900/40 to-stone-800/20" />
 
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-semibold tracking-widest uppercase backdrop-blur-xl">
               <BrandMark className="size-5 rounded-md" />
-              <span>Mogureco</span>
+              <span>BiteLog</span>
             </div>
           </div>
 
@@ -515,7 +515,7 @@ function AuthScreen({
               美しい記憶のままに。
             </h1>
             <p className="text-[13px] leading-relaxed text-white/60 font-light max-w-sm">
-              お気に入りの店、心に残った料理。もぐレコは、あなたの美味しい体験を写真と文字で残すプライベートログです。
+              お気に入りの店、心に残った料理。BiteLogは、あなたの美味しい体験を写真と文字で残すプライベートログです。
             </p>
             <div className="flex gap-6 pt-2 text-white/50 text-[11px] tracking-wide uppercase font-medium">
               <span>Import</span>
@@ -581,7 +581,7 @@ function AuthScreen({
           </div>
 
           <div className="pt-8 text-center">
-            <p className="text-[11px] text-stone-300 tracking-wide">&copy; {new Date().getFullYear()} MOGURECO</p>
+            <p className="text-[11px] text-stone-300 tracking-wide">&copy; {new Date().getFullYear()} BITELOG</p>
           </div>
         </section>
       </div>
@@ -616,8 +616,8 @@ function AppHeader({
       <div className="flex items-center gap-2.5 shrink-0">
         <BrandMark className="size-9 rounded-xl shadow-sm" />
         <div className="hidden sm:block min-w-0">
-          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-400">Gourmet Journal</p>
-          <h1 className="text-sm font-bold text-stone-800 -mt-0.5">もぐレコ</h1>
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-400">Food Journal</p>
+          <h1 className="text-sm font-bold text-stone-800 -mt-0.5">BiteLog</h1>
         </div>
       </div>
 
@@ -1375,7 +1375,7 @@ function MogurecoImportPanel({
         const visitId = imageFile.visitedAt
           ? restaurant.visits?.find((visit) => visit.visited_at === imageFile.visitedAt)?.id ?? null
           : null;
-        const storagePath = `${userId}/${restaurant.id}/mogureco/${crypto.randomUUID()}-${sanitizeStorageFileName(imageFile.file.name)}`;
+        const storagePath = `${userId}/${restaurant.id}/bitelog/${crypto.randomUUID()}-${sanitizeStorageFileName(imageFile.file.name)}`;
         const { error: uploadError } = await client.storage.from("food-photos").upload(storagePath, imageFile.file, {
           cacheControl: "31536000",
           upsert: false,
@@ -1547,7 +1547,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
       </div>
       <div className="space-y-1">
         <h2 className="text-sm font-bold text-stone-700">記録が見つかりませんでした</h2>
-        <p className="text-xs text-stone-400 font-light max-w-xs">最初の店舗を追加して、あなただけの美食記録を始めましょう。</p>
+        <p className="text-xs text-stone-400 font-light max-w-xs">最初の店舗を追加して、あなただけのBiteLogを始めましょう。</p>
       </div>
       <Button className="rounded-xl press-effect mt-1" onClick={onAdd} size="sm">
         <Plus className="size-4" />
