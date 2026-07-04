@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type View = "list" | "new" | "detail" | "visit";
 const supabase = createClient();
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://log-project-psi.vercel.app";
 
 function getSupabase() {
   if (!supabase) {
@@ -26,6 +27,7 @@ export default function Home() {
   const [userId, setUserId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
+  const [authMessage, setAuthMessage] = useState("");
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | RestaurantStatus>("all");
@@ -34,6 +36,9 @@ export default function Home() {
 
   useEffect(() => {
     if (!supabase) return;
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const authError = params.get("error_description");
+    if (authError) setAuthMessage(decodeURIComponent(authError.replace(/\+/g, " ")));
     supabase.auth.getUser().then(({ data }) => { setUserId(data.user?.id ?? null); setLoading(false); });
     const { data } = supabase.auth.onAuthStateChange((_event, session) => setUserId(session?.user.id ?? null));
     return () => data.subscription.unsubscribe();
@@ -54,13 +59,18 @@ export default function Home() {
 
   async function login() {
     if (!supabase || !email) return;
-    await getSupabase().auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin } });
-    alert("ログイン用リンクをメールで送信しました。");
+    const redirectTo = siteUrl.replace(/\/$/, "");
+    const { error } = await getSupabase().auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+    if (error) {
+      setAuthMessage(error.message);
+      return;
+    }
+    setAuthMessage("ログイン用リンクをメールで送信しました。新しいメールのリンクを開いてください。");
   }
 
   if (!supabase) return <Shell><Card className="space-y-4"><h1 className="text-2xl font-bold">AIグルメ記録</h1><p className="text-muted-foreground">Supabase の公開環境変数が未設定です。Vercel に NEXT_PUBLIC_SUPABASE_URL と NEXT_PUBLIC_SUPABASE_ANON_KEY を設定してください。</p></Card></Shell>;
   if (loading) return <Shell><p>読み込み中...</p></Shell>;
-  if (!userId) return <Shell><Card className="space-y-4"><h1 className="text-2xl font-bold">AIグルメ記録</h1><p className="text-muted-foreground">メールリンクでログインして、自分だけの店・料理・写真を記録します。</p><Input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /><Button className="w-full" onClick={login}>ログインリンクを送る</Button></Card></Shell>;
+  if (!userId) return <Shell><Card className="space-y-4"><h1 className="text-2xl font-bold">AIグルメ記録</h1><p className="text-muted-foreground">メールリンクでログインして、自分だけの店・料理・写真を記録します。</p>{authMessage && <p className="rounded-md bg-accent p-3 text-sm">{authMessage}</p>}<Input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /><Button className="w-full" onClick={login}>ログインリンクを送る</Button></Card></Shell>;
 
   return <Shell>
     <header className="sticky top-0 z-10 -mx-4 mb-4 bg-background/90 px-4 py-3 backdrop-blur"><div className="flex items-center justify-between"><div><p className="text-xs text-muted-foreground">Personal PWA</p><h1 className="text-xl font-bold">グルメ記録</h1></div><Button variant="ghost" size="sm" onClick={() => getSupabase().auth.signOut()}><LogOut className="size-4" /></Button></div></header>
