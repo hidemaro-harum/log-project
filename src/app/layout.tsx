@@ -16,8 +16,14 @@ const notoSans = Noto_Sans_JP({
 
 export const metadata: Metadata = {
   title: "もぐレコ",
-  description: "個人用もぐレコPWA",
-  icons: { icon: "/icon.svg" },
+  description: "写真と一緒に食事の記憶を残す、個人用もぐレコPWA",
+  icons: {
+    icon: [
+      { url: "/favicon.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 export const viewport: Viewport = { themeColor: "#5c6f59", width: "device-width", initialScale: 1 };
 

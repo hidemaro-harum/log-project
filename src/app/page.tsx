@@ -5,11 +5,9 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Camera,
-  ChefHat,
   FolderOpen,
   Image as ImageIcon,
   KeyRound,
-  ListFilter,
   Lock,
   LogOut,
   MapPin,
@@ -18,11 +16,14 @@ import {
   Settings,
   SlidersHorizontal,
   Star,
+  Trash2,
   Utensils,
   Upload,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getFriendlyAuthError, getPasswordValidation, getRedirectUrl } from "@/lib/auth";
+import { createVisitPhotoUploads, sanitizeStorageFileName } from "@/lib/photo-upload";
+import { getDuplicateRestaurantCleanupPlan } from "@/lib/restaurant-dedupe";
 import { sortRestaurants, type SortMode } from "@/lib/restaurant-sort";
 import {
   getMogurecoImageImportSummary,
@@ -63,6 +64,7 @@ export default function Home() {
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authBusy, setAuthBusy] = useState(false);
+  const [cleanupBusy, setCleanupBusy] = useState(false);
   const [message, setMessage] = useState<Message | null>(null);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [query, setQuery] = useState("");
@@ -222,11 +224,82 @@ export default function Home() {
     setMessage(null);
   }
 
+  async function cleanupDuplicateRestaurants() {
+    const client = getSupabase();
+    const { data: user } = await client.auth.getUser();
+    const currentUserId = user.user?.id;
+    if (!currentUserId) return;
+
+    const plans = getDuplicateRestaurantCleanupPlan(restaurants);
+    const deleteCount = plans.reduce((sum, plan) => sum + plan.deleteIds.length, 0);
+    if (!deleteCount) {
+      setMessage({ text: "写真なしの重複店舗は見つかりませんでした。", type: "neutral" });
+      return;
+    }
+
+    setCleanupBusy(true);
+    setMessage(null);
+
+    for (const plan of plans) {
+      const { error: visitError } = await client
+        .from("visits")
+        .update({ restaurant_id: plan.keeperId })
+        .in("restaurant_id", plan.deleteIds);
+      if (visitError) {
+        setCleanupBusy(false);
+        setMessage({ text: visitError.message, type: "error" });
+        return;
+      }
+
+      const { data: tagRows, error: tagLoadError } = await client
+        .from("restaurant_tags")
+        .select("tag_id")
+        .in("restaurant_id", plan.deleteIds);
+      if (tagLoadError) {
+        setCleanupBusy(false);
+        setMessage({ text: tagLoadError.message, type: "error" });
+        return;
+      }
+
+      const tagIds = [...new Set((tagRows ?? []).map((row) => row.tag_id).filter(Boolean))];
+      if (tagIds.length) {
+        const { error: tagUpsertError } = await client
+          .from("restaurant_tags")
+          .upsert(
+            tagIds.map((tagId) => ({ restaurant_id: plan.keeperId, tag_id: tagId, user_id: currentUserId })),
+            { onConflict: "restaurant_id,tag_id" },
+          );
+        if (tagUpsertError) {
+          setCleanupBusy(false);
+          setMessage({ text: tagUpsertError.message, type: "error" });
+          return;
+        }
+      }
+
+      const { error: deleteError } = await client
+        .from("restaurants")
+        .delete()
+        .in("id", plan.deleteIds);
+      if (deleteError) {
+        setCleanupBusy(false);
+        setMessage({ text: deleteError.message, type: "error" });
+        return;
+      }
+    }
+
+    setCleanupBusy(false);
+    setMessage({ text: `${deleteCount}件の写真なし重複店舗を削除しました。`, type: "success" });
+    await loadRestaurants();
+  }
+
   if (!supabase) {
     return (
       <Shell>
         <Card className="space-y-3">
-          <h1 className="text-2xl font-bold">もぐレコ</h1>
+          <div className="flex items-center gap-3">
+            <BrandMark className="size-10 rounded-xl" />
+            <h1 className="text-2xl font-bold">もぐレコ</h1>
+          </div>
           <p className="text-sm text-muted-foreground">
             Supabase の公開環境変数が未設定です。Vercel に NEXT_PUBLIC_SUPABASE_URL と NEXT_PUBLIC_SUPABASE_ANON_KEY を設定してください。
           </p>
@@ -362,10 +435,12 @@ export default function Home() {
         <div className="animate-in">
           <AccountPanel
             authBusy={authBusy}
+            cleanupBusy={cleanupBusy}
             email={userEmail}
             isPasswordRecovery={isPasswordRecovery}
             newPassword={newPassword}
             onBack={() => setView("list")}
+            onCleanupDuplicates={cleanupDuplicateRestaurants}
             onNewPasswordChange={setNewPassword}
             onSubmit={updatePassword}
           />
@@ -381,7 +456,7 @@ export default function Home() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="min-h-screen bg-background px-4 py-5 text-foreground md:px-8 md:py-8 flex flex-col justify-start">
+    <main className="min-h-screen px-4 py-5 text-foreground md:px-8 md:py-8 flex flex-col justify-start">
       {children}
     </main>
   );
@@ -415,7 +490,7 @@ function AuthScreen({
   onSetup: (event: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center p-4 sm:p-6 md:p-10">
+    <main className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-10">
       <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl shadow-stone-300/30 lg:grid lg:grid-cols-[1.15fr_0.85fr] min-h-[580px] animate-scale">
         {/* 左側: ビジュアル */}
         <section className="relative min-h-[280px] overflow-hidden bg-stone-900 text-white lg:min-h-full flex flex-col justify-between p-8 md:p-10">
@@ -428,7 +503,7 @@ function AuthScreen({
 
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2.5 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-[11px] font-semibold tracking-widest uppercase backdrop-blur-xl">
-              <ChefHat className="size-3.5 text-white/70" />
+              <BrandMark className="size-5 rounded-md" />
               <span>Mogureco</span>
             </div>
           </div>
@@ -539,9 +614,7 @@ function AppHeader({
     <header className="mx-auto mb-6 flex max-w-6xl items-center gap-3 rounded-2xl glass-card px-4 py-3 shadow-sm animate-in">
       {/* ロゴ */}
       <div className="flex items-center gap-2.5 shrink-0">
-        <div className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
-          <ChefHat className="size-4.5" />
-        </div>
+        <BrandMark className="size-9 rounded-xl shadow-sm" />
         <div className="hidden sm:block min-w-0">
           <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-stone-400">Gourmet Journal</p>
           <h1 className="text-sm font-bold text-stone-800 -mt-0.5">もぐレコ</h1>
@@ -577,6 +650,17 @@ function AppHeader({
         </IconButton>
       </div>
     </header>
+  );
+}
+
+function BrandMark({ className = "size-9 rounded-xl" }: { className?: string }) {
+  return (
+    <img
+      alt=""
+      aria-hidden="true"
+      className={`shrink-0 object-cover ${className}`}
+      src="/icons/icon-192.png"
+    />
   );
 }
 
@@ -970,8 +1054,9 @@ function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () =
 
 function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; onBack: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({ visited_at: new Date().toISOString().slice(0, 10), dish_name: "", rating: "", memo: "", caption: "" });
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<Message | null>(null);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -981,7 +1066,8 @@ function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; on
     if (!userId) return;
 
     setBusy(true);
-    const { data: visit } = await client
+    setMessage(null);
+    const { data: visit, error: visitError } = await client
       .from("visits")
       .insert({
         user_id: userId,
@@ -994,18 +1080,43 @@ function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; on
       .select()
       .single();
 
+    if (visitError || !visit) {
+      setBusy(false);
+      setMessage({ text: visitError?.message ?? "訪問記録を保存できませんでした。", type: "error" });
+      return;
+    }
+
     await client.from("restaurants").update({ status: "visited", updated_at: new Date().toISOString() }).eq("id", restaurant.id);
 
-    if (file && visit) {
-      const path = `${userId}/${restaurant.id}/${crypto.randomUUID()}-${file.name}`;
-      await client.storage.from("food-photos").upload(path, file);
-      await client.from("photos").insert({
-        user_id: userId,
-        restaurant_id: restaurant.id,
-        visit_id: visit.id,
-        storage_path: path,
-        caption: form.caption || null,
+    const photoErrors: string[] = [];
+
+    for (const upload of createVisitPhotoUploads({
+      files,
+      userId,
+      restaurantId: restaurant.id,
+      visitId: visit.id,
+      caption: form.caption,
+      createId: () => crypto.randomUUID(),
+    })) {
+      const { error: uploadError } = await client.storage.from("food-photos").upload(upload.path, upload.file);
+      if (uploadError) {
+        photoErrors.push(`${upload.file.name}: ${uploadError.message}`);
+        continue;
+      }
+
+      const { error: photoError } = await client.from("photos").insert(upload.row);
+      if (photoError) {
+        photoErrors.push(`${upload.file.name}: ${photoError.message}`);
+      }
+    }
+
+    if (photoErrors.length) {
+      setBusy(false);
+      setMessage({
+        text: `訪問記録は保存しましたが、写真${photoErrors.length}枚の登録に失敗しました。${photoErrors.join(" / ")}`,
+        type: "error",
       });
+      return;
     }
 
     setBusy(false);
@@ -1026,7 +1137,19 @@ function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; on
             <Input className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60" max="5" min="0.5" placeholder="例: 4.0" step="0.5" type="number" value={form.rating} onChange={(event) => setForm({ ...form, rating: event.target.value })} />
           </Field>
           <Field label="写真">
-            <Input className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60 file:bg-stone-200/50 file:border-none file:text-xs file:font-semibold cursor-pointer" accept="image/*" type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+            <Input
+              className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60 file:bg-stone-200/50 file:border-none file:text-xs file:font-semibold cursor-pointer"
+              accept="image/*"
+              multiple
+              type="file"
+              onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
+            />
+            {files.length > 0 && (
+              <div className="mt-2 space-y-1 rounded-xl bg-stone-50/70 p-3 text-xs text-stone-600">
+                <p className="font-semibold">{files.length}枚選択中</p>
+                <p className="line-clamp-2">{files.map((selectedFile) => selectedFile.name).join("、")}</p>
+              </div>
+            )}
           </Field>
           <Field className="md:col-span-2" label="感想・訪問メモ">
             <Textarea className="rounded-xl bg-stone-50/50 border-stone-200/60 min-h-[100px]" placeholder="料理の味、サービス、混雑状況など..." value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
@@ -1038,6 +1161,7 @@ function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; on
             <Camera className="size-4" />
             訪問記録を保存する
           </Button>
+          {message && <div className="md:col-span-2"><MessageBanner message={message} /></div>}
         </form>
       </Card>
     </FormShell>
@@ -1050,18 +1174,22 @@ function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; on
 
 function AccountPanel({
   authBusy,
+  cleanupBusy,
   email,
   isPasswordRecovery,
   newPassword,
   onBack,
+  onCleanupDuplicates,
   onNewPasswordChange,
   onSubmit,
 }: {
   authBusy: boolean;
+  cleanupBusy: boolean;
   email: string;
   isPasswordRecovery: boolean;
   newPassword: string;
   onBack: () => void;
+  onCleanupDuplicates: () => void;
   onNewPasswordChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
@@ -1081,6 +1209,18 @@ function AccountPanel({
             パスワードを更新
           </Button>
         </form>
+        <div className="space-y-3 border-t border-stone-100/80 pt-5">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">データ整理</p>
+            <p className="mt-1 text-sm leading-6 text-stone-600">
+              同じ店名と住所で重複している店舗のうち、写真が入っていない店舗を削除します。訪問履歴とタグは写真ありの店舗へ移します。
+            </p>
+          </div>
+          <Button className="h-11 rounded-xl press-effect w-full sm:w-auto" disabled={cleanupBusy} type="button" variant="outline" onClick={onCleanupDuplicates}>
+            <Trash2 className="size-4" />
+            写真なし重複店舗を削除
+          </Button>
+        </div>
       </Card>
     </FormShell>
   );
@@ -1393,10 +1533,6 @@ function normalizeRestaurantName(name: string) {
   return name.trim().normalize("NFKC").toLowerCase();
 }
 
-function sanitizeStorageFileName(fileName: string) {
-  return fileName.normalize("NFKC").replace(/[^\w.-]+/g, "-");
-}
-
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -1407,7 +1543,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="mx-auto mt-8 max-w-6xl flex flex-col items-center gap-4 py-20 text-center animate-in">
       <div className="grid size-14 place-items-center rounded-2xl bg-stone-100/60 text-stone-300">
-        <ListFilter className="size-6" />
+        <BrandMark className="size-10 rounded-xl opacity-80" />
       </div>
       <div className="space-y-1">
         <h2 className="text-sm font-bold text-stone-700">記録が見つかりませんでした</h2>
