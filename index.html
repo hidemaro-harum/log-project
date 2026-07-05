@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="朝の食事レポート風に、今日の前向きな一言を届けるもぐレポ風ミニアプリ。" />
+  <title>もぐレポ風 朝のひとこと</title>
+  <style>
+    :root {
+      --ink: #1c241f;
+      --muted: #68736b;
+      --paper: #fffdf7;
+      --wash: #fff3df;
+      --leaf: #1f6f50;
+      --leaf-dark: #173f32;
+      --leaf-soft: #dff4e8;
+      --orange: #ffad42;
+      --orange-soft: #ffe2ac;
+      --line: rgba(31, 63, 50, 0.14);
+      --shadow: 0 28px 80px rgba(80, 52, 21, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255, 205, 93, 0.45), transparent 34rem),
+        linear-gradient(135deg, #fff8e9 0%, #f4fff9 100%);
+      color: var(--ink);
+    }
+
+    .app-shell {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      background: var(--leaf-dark);
+      color: #fff7da;
+      box-shadow: 0 10px 24px rgba(23, 63, 50, 0.22);
+    }
+
+    .badge {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 14px;
+      background: rgba(255, 255, 255, 0.66);
+      color: var(--leaf-dark);
+      font-size: 14px;
+      font-weight: 700;
+      backdrop-filter: blur(12px);
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.98fr);
+      gap: 28px;
+      align-items: center;
+    }
+
+    .hero-card {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 36px;
+      background: rgba(255, 253, 247, 0.82);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .content-card {
+      border: 1px solid var(--line);
+      border-radius: 36px;
+      background: rgba(255, 253, 247, 0.92);
+      box-shadow: var(--shadow);
+      padding: clamp(24px, 4vw, 44px);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 14px;
+      color: var(--leaf);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--orange);
+    }
+
+    h1 {
+      margin: 0 0 16px;
+      font-size: clamp(36px, 6vw, 66px);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+    }
+
+    .lead {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.8;
+    }
+
+    .word-panel {
+      border-radius: 30px;
+      background: linear-gradient(145deg, var(--leaf-dark), #245f49);
+      color: #fff9e8;
+      padding: 26px;
+      margin-bottom: 18px;
+      min-height: 204px;
+    }
+
+    .word-label {
+      margin: 0 0 12px;
+      color: #bfe7d3;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+    }
+
+    #wordText {
+      margin: 0 0 12px;
+      font-size: clamp(34px, 5vw, 54px);
+      font-weight: 900;
+      letter-spacing: -0.05em;
+    }
+
+    #wordNote {
+      margin: 0;
+      color: #f4e8ca;
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 18px;
+      padding: 15px 16px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px rgba(40, 46, 36, 0.12);
+    }
+
+    .primary {
+      background: var(--orange);
+      color: #3c2604;
+    }
+
+    .secondary {
+      background: var(--leaf-soft);
+      color: var(--leaf-dark);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      padding: 14px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 20px;
+      color: var(--leaf-dark);
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr; }
+      header { align-items: flex-start; flex-direction: column; }
+      .hero-card { order: -1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div class="brand" aria-label="もぐレポ風 朝のひとこと">
+        <span class="brand-mark">もぐ</span>
+        <span>もぐレポ風<br />朝のひとこと</span>
+      </div>
+      <div class="badge">食べる・記録する・前に進む</div>
+    </header>
+
+    <main>
+      <section class="content-card" aria-labelledby="appTitle">
+        <p class="eyebrow">MORNING REPORT</p>
+        <h1 id="appTitle">今日の一口で、気分を上げる。</h1>
+        <p class="lead">食事レポートのように、朝の気分と行動を軽く記録するミニアプリです。ワードを引いて、今日のスイッチを入れましょう。</p>
+
+        <section class="word-panel" aria-live="polite">
+          <p class="word-label">TODAY'S BITE</p>
+          <p id="wordText"></p>
+          <p id="wordNote"></p>
+        </section>
+
+        <div class="actions">
+          <button class="primary" id="nextButton" type="button">次の一口</button>
+          <button class="secondary" id="saveButton" type="button">刺さった</button>
+        </div>
+
+        <div class="stats" aria-label="今日のレポート">
+          <div class="stat"><strong id="drawCount">0</strong><span>抽選</span></div>
+          <div class="stat"><strong id="hitCount">0</strong><span>刺さった</span></div>
+          <div class="stat"><strong>7:00</strong><span>おすすめ通知</span></div>
+        </div>
+      </section>
+
+      <figure class="hero-card">
+        <img src="assets/mogurepo-hero.svg" alt="スマートフォンに朝ごはんとひとくちメモが表示された、もぐレポ風のイラスト" />
+      </figure>
+    </main>
+  </div>
+
+  <script>
+    const WORDS = [
+      { text: "まず一口", note: "完璧な朝より、動き出す朝。小さく始めれば流れが変わる。" },
+      { text: "記録は味方", note: "食べたものも、感じたことも、残せば次の自分のヒントになる。" },
+      { text: "迷う前に着手", note: "考えすぎたら、10分だけ進める。今日の勝ち筋はそこから見える。" },
+      { text: "軽く整える", note: "体を満たして、机を整えて、最初のタスクをひとつだけ決める。" },
+      { text: "今日も前進", note: "大きな変化はいらない。昨日より一歩だけ前に出れば十分。" },
+      { text: "おいしく集中", note: "朝の満足感を、仕事の集中力に変える。" }
+    ];
+
+    const wordText = document.getElementById("wordText");
+    const wordNote = document.getElementById("wordNote");
+    const nextButton = document.getElementById("nextButton");
+    const saveButton = document.getElementById("saveButton");
+    const drawCount = document.getElementById("drawCount");
+    const hitCount = document.getElementById("hitCount");
+
+    let currentIndex = -1;
+    let draws = 0;
+    let hits = 0;
+
+    function pickNextIndex() {
+      if (WORDS.length === 1) return 0;
+      let nextIndex = currentIndex;
+      while (nextIndex === currentIndex) {
+        nextIndex = Math.floor(Math.random() * WORDS.length);
+      }
+      return nextIndex;
+    }
+
+    function renderWord() {
+      currentIndex = pickNextIndex();
+      const word = WORDS[currentIndex];
+      wordText.textContent = word.text;
+      wordNote.textContent = word.note;
+      draws += 1;
+      drawCount.textContent = draws;
+    }
+
+    nextButton.addEventListener("click", renderWord);
+    saveButton.addEventListener("click", () => {
+      hits += 1;
+      hitCount.textContent = hits;
+      saveButton.textContent = "保存しました";
+      window.setTimeout(() => {
+        saveButton.textContent = "刺さった";
+      }, 900);
+    });
+
+    renderWord();
+  </script>
+</body>
+</html>

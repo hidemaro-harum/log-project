@@ -1,0 +1,57 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">もぐレポ風の朝活レポートイラスト</title>
+  <desc id="desc">朝の光の中で、食事ログと一言メモを確認するスマートフォン画面のイラスト。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF6DE"/>
+      <stop offset="0.48" stop-color="#FFE5C2"/>
+      <stop offset="1" stop-color="#D9F2E6"/>
+    </linearGradient>
+    <linearGradient id="phone" x1="449" y1="100" x2="806" y2="680" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#222326"/>
+      <stop offset="1" stop-color="#111214"/>
+    </linearGradient>
+    <filter id="shadow" x="250" y="70" width="700" height="680" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="28" stdDeviation="30" flood-color="#8D5E24" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="760" rx="56" fill="url(#bg)"/>
+  <circle cx="196" cy="164" r="96" fill="#FFD36A" opacity="0.55"/>
+  <circle cx="1030" cy="606" r="132" fill="#87D8B3" opacity="0.42"/>
+  <path d="M120 570C214 490 296 490 390 570C484 650 566 650 660 570C754 490 836 490 930 570C1003 632 1070 648 1136 619" stroke="#F0A33C" stroke-width="18" stroke-linecap="round" opacity="0.28"/>
+  <g filter="url(#shadow)">
+    <rect x="428" y="86" width="344" height="596" rx="52" fill="url(#phone)"/>
+    <rect x="452" y="122" width="296" height="524" rx="34" fill="#FFFDF7"/>
+    <rect x="540" y="105" width="120" height="10" rx="5" fill="#46484D"/>
+    <rect x="480" y="154" width="240" height="74" rx="22" fill="#213E34"/>
+    <text x="508" y="184" fill="#FFF4D2" font-family="Arial, sans-serif" font-size="18" font-weight="700">今日のもぐレポ</text>
+    <text x="508" y="210" fill="#BFE7D3" font-family="Arial, sans-serif" font-size="13">朝のひとくちでスイッチON</text>
+    <rect x="480" y="252" width="112" height="112" rx="32" fill="#FFE0A3"/>
+    <circle cx="536" cy="308" r="38" fill="#F48C5A"/>
+    <circle cx="523" cy="298" r="8" fill="#FFF4D8"/>
+    <circle cx="552" cy="319" r="7" fill="#FFF4D8"/>
+    <rect x="610" y="252" width="110" height="112" rx="28" fill="#DFF4E8"/>
+    <path d="M641 320C654 284 686 275 704 303C690 337 657 347 641 320Z" fill="#2FA36B"/>
+    <path d="M638 327C663 324 688 315 706 296" stroke="#176A45" stroke-width="5" stroke-linecap="round"/>
+    <rect x="480" y="388" width="240" height="122" rx="28" fill="#FFF4DF"/>
+    <text x="506" y="425" fill="#1D251F" font-family="Arial, sans-serif" font-size="18" font-weight="800">ひとくちメモ</text>
+    <text x="506" y="456" fill="#5A625C" font-family="Arial, sans-serif" font-size="16">迷ったら、まず一口。</text>
+    <text x="506" y="482" fill="#5A625C" font-family="Arial, sans-serif" font-size="16">今日の自分を前に進める。</text>
+    <rect x="480" y="532" width="112" height="74" rx="24" fill="#203E34"/>
+    <text x="511" y="577" fill="#FFF7DD" font-family="Arial, sans-serif" font-size="20" font-weight="800">記録</text>
+    <rect x="608" y="532" width="112" height="74" rx="24" fill="#FFB347"/>
+    <text x="639" y="577" fill="#3D2600" font-family="Arial, sans-serif" font-size="20" font-weight="800">共有</text>
+  </g>
+  <g opacity="0.9">
+    <rect x="170" y="348" width="210" height="124" rx="34" fill="#FFFFFF"/>
+    <text x="210" y="392" fill="#213E34" font-family="Arial, sans-serif" font-size="23" font-weight="800">朝ごはん</text>
+    <text x="210" y="430" fill="#70756F" font-family="Arial, sans-serif" font-size="18">集中力 +12</text>
+    <circle cx="338" cy="408" r="24" fill="#FFB347"/>
+  </g>
+  <g opacity="0.9">
+    <rect x="814" y="246" width="220" height="136" rx="34" fill="#FFFFFF"/>
+    <text x="852" y="292" fill="#213E34" font-family="Arial, sans-serif" font-size="23" font-weight="800">レポート</text>
+    <rect x="852" y="318" width="128" height="12" rx="6" fill="#82CFA8"/>
+    <rect x="852" y="344" width="88" height="12" rx="6" fill="#FFD36A"/>
+  </g>
+</svg>
