@@ -171,8 +171,7 @@
 
     .actions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 14px;
     }
 
     button {
@@ -182,7 +181,7 @@
       font: inherit;
       font-weight: 800;
       cursor: pointer;
-      transition: transform 160ms ease, box-shadow 160ms ease;
+      transition: transform 160ms ease, box-shadow 160ms ease, color 160ms ease, background 160ms ease;
     }
 
     button:hover {
@@ -195,9 +194,63 @@
       color: #3c2604;
     }
 
-    .secondary {
-      background: var(--leaf-soft);
+    .rating-card {
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.78);
+      padding: 16px;
+    }
+
+    .rating-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+
+    .rating-title {
       color: var(--leaf-dark);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+    }
+
+    .rating-value {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .star-rating {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .star-button {
+      display: grid;
+      place-items: center;
+      min-height: 52px;
+      border: 1px solid rgba(255, 173, 66, 0.28);
+      border-radius: 18px;
+      background: #fff8e8;
+      color: #d5c6a9;
+      font-size: 31px;
+      line-height: 1;
+      padding: 8px 6px 10px;
+    }
+
+    .star-button.is-selected,
+    .star-button.is-filled {
+      background: var(--orange-soft);
+      color: var(--orange);
+      text-shadow: 0 2px 0 rgba(104, 65, 0, 0.08);
+    }
+
+    .star-button:focus-visible {
+      outline: 3px solid rgba(31, 111, 80, 0.32);
+      outline-offset: 3px;
     }
 
     .stats {
@@ -257,12 +310,25 @@
 
         <div class="actions">
           <button class="primary" id="nextButton" type="button">次の一口</button>
-          <button class="secondary" id="saveButton" type="button">刺さった</button>
+
+          <section class="rating-card" aria-labelledby="ratingTitle">
+            <div class="rating-head">
+              <span class="rating-title" id="ratingTitle">今日の満足度</span>
+              <span class="rating-value"><span id="ratingValue">0</span> / 5</span>
+            </div>
+            <div class="star-rating" role="radiogroup" aria-labelledby="ratingTitle">
+              <button class="star-button" type="button" role="radio" aria-checked="false" aria-label="1つ星" data-rating="1">★</button>
+              <button class="star-button" type="button" role="radio" aria-checked="false" aria-label="2つ星" data-rating="2">★</button>
+              <button class="star-button" type="button" role="radio" aria-checked="false" aria-label="3つ星" data-rating="3">★</button>
+              <button class="star-button" type="button" role="radio" aria-checked="false" aria-label="4つ星" data-rating="4">★</button>
+              <button class="star-button" type="button" role="radio" aria-checked="false" aria-label="5つ星" data-rating="5">★</button>
+            </div>
+          </section>
         </div>
 
         <div class="stats" aria-label="今日のレポート">
           <div class="stat"><strong id="drawCount">0</strong><span>抽選</span></div>
-          <div class="stat"><strong id="hitCount">0</strong><span>刺さった</span></div>
+          <div class="stat"><strong id="ratingStat">0</strong><span>星評価</span></div>
           <div class="stat"><strong>7:00</strong><span>おすすめ通知</span></div>
         </div>
       </section>
@@ -286,13 +352,14 @@
     const wordText = document.getElementById("wordText");
     const wordNote = document.getElementById("wordNote");
     const nextButton = document.getElementById("nextButton");
-    const saveButton = document.getElementById("saveButton");
     const drawCount = document.getElementById("drawCount");
-    const hitCount = document.getElementById("hitCount");
+    const ratingValue = document.getElementById("ratingValue");
+    const ratingStat = document.getElementById("ratingStat");
+    const starButtons = Array.from(document.querySelectorAll(".star-button"));
 
     let currentIndex = -1;
     let draws = 0;
-    let hits = 0;
+    let selectedRating = 0;
 
     function pickNextIndex() {
       if (WORDS.length === 1) return 0;
@@ -312,16 +379,29 @@
       drawCount.textContent = draws;
     }
 
+    function updateRating(rating) {
+      selectedRating = rating;
+      ratingValue.textContent = selectedRating;
+      ratingStat.textContent = selectedRating;
+
+      starButtons.forEach((button) => {
+        const buttonRating = Number(button.dataset.rating);
+        const isFilled = buttonRating <= selectedRating;
+        const isSelected = buttonRating === selectedRating;
+        button.classList.toggle("is-filled", isFilled);
+        button.classList.toggle("is-selected", isSelected);
+        button.setAttribute("aria-checked", String(isSelected));
+      });
+    }
+
     nextButton.addEventListener("click", renderWord);
-    saveButton.addEventListener("click", () => {
-      hits += 1;
-      hitCount.textContent = hits;
-      saveButton.textContent = "保存しました";
-      window.setTimeout(() => {
-        saveButton.textContent = "刺さった";
-      }, 900);
+    starButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        updateRating(Number(button.dataset.rating));
+      });
     });
 
+    updateRating(selectedRating);
     renderWord();
   </script>
 </body>

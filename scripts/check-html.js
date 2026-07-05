@@ -6,6 +6,8 @@ const requiredSnippets = [
   'assets/mogurepo-hero.svg',
   'const WORDS = [',
   'function renderWord',
+  'data-rating="5"',
+  'function updateRating',
 ];
 
 for (const snippet of requiredSnippets) {
