@@ -6,7 +6,7 @@ export type VisitPhotoUploadInput<TFile extends PhotoUploadFile> = {
   files: TFile[];
   userId: string;
   restaurantId: string;
-  visitId: string;
+  visitId: string | null;
   caption: string;
   createId: () => string;
 };
@@ -17,7 +17,7 @@ export type VisitPhotoUpload<TFile extends PhotoUploadFile> = {
   row: {
     user_id: string;
     restaurant_id: string;
-    visit_id: string;
+    visit_id: string | null;
     storage_path: string;
     caption: string | null;
   };

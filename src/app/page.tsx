@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { getFriendlyAuthError, getPasswordValidation, getRedirectUrl } from "@/lib/auth";
+import { getPhotoCoordinates } from "@/lib/photo-location";
 import { createVisitPhotoUploads, sanitizeStorageFileName } from "@/lib/photo-upload";
 import { deleteRestaurantWithAssets } from "@/lib/restaurant-delete";
 import { getDuplicateRestaurantCleanupPlan } from "@/lib/restaurant-dedupe";
@@ -32,6 +33,7 @@ import {
   type MogurecoImageImportSummary,
   type MogurecoImportRecord,
 } from "@/lib/mogureco-import";
+import type { PlaceSuggestion } from "@/lib/place-suggestions";
 import type { Photo, Restaurant, RestaurantStatus, Tag, Visit } from "@/types/database";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +45,11 @@ import { Textarea } from "@/components/ui/textarea";
 type View = "list" | "new" | "detail" | "visit" | "account" | "import";
 type AuthMode = "login" | "setup";
 type Message = { text: string; type: "neutral" | "success" | "error" };
+type PlaceLookupState = {
+  status: "idle" | "loading" | "ready" | "empty" | "unavailable" | "error";
+  message: string;
+  suggestions: PlaceSuggestion[];
+};
 
 const supabase = createClient();
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://log-project-psi.vercel.app";
@@ -1045,8 +1052,94 @@ function RestaurantDetail({
    ======================================== */
 
 function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState({ name: "", area: "", genre: "", status: "visited" as RestaurantStatus, rating: "", memo: "", tags: "" });
+  const [form, setForm] = useState({
+    name: "",
+    area: "",
+    genre: "",
+    status: "visited" as RestaurantStatus,
+    rating: "",
+    memo: "",
+    tags: "",
+    visited_at: new Date().toISOString().slice(0, 10),
+    dish_name: "",
+    visitMemo: "",
+    caption: "",
+  });
+  const [files, setFiles] = useState<File[]>([]);
+  const [placeLookup, setPlaceLookup] = useState<PlaceLookupState>({
+    status: "idle",
+    message: "",
+    suggestions: [],
+  });
   const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<Message | null>(null);
+
+  async function handlePhotoFiles(fileList: FileList | null) {
+    const nextFiles = Array.from(fileList ?? []);
+    setFiles(nextFiles);
+    setPlaceLookup({ status: "idle", message: "", suggestions: [] });
+    if (!nextFiles.length) return;
+
+    setPlaceLookup({
+      status: "loading",
+      message: "写真の位置情報を確認しています。",
+      suggestions: [],
+    });
+
+    try {
+      const coordinates = await getPhotoCoordinates(nextFiles[0]);
+      if (!coordinates) {
+        setPlaceLookup({
+          status: "unavailable",
+          message: "選択した写真に位置情報がありません。店名は手入力できます。",
+          suggestions: [],
+        });
+        return;
+      }
+
+      setPlaceLookup({
+        status: "loading",
+        message: "写真の位置情報から近くのお店を検索しています。",
+        suggestions: [],
+      });
+
+      const params = new URLSearchParams({
+        lat: String(coordinates.latitude),
+        lng: String(coordinates.longitude),
+      });
+      const response = await fetch(`/api/places/nearby?${params.toString()}`);
+      const payload = (await response.json()) as { error?: string; suggestions?: PlaceSuggestion[] };
+      if (!response.ok) throw new Error(payload.error ?? "店舗候補を検索できませんでした。");
+
+      const suggestions = payload.suggestions ?? [];
+      setPlaceLookup({
+        status: suggestions.length ? "ready" : "empty",
+        message: suggestions.length
+          ? "写真の近くにあるお店候補を選択できます。"
+          : "近くのお店候補が見つかりませんでした。",
+        suggestions,
+      });
+    } catch (error) {
+      setPlaceLookup({
+        status: "error",
+        message: error instanceof Error ? error.message : "店舗候補を検索できませんでした。",
+        suggestions: [],
+      });
+    }
+  }
+
+  function applyPlaceSuggestion(suggestion: PlaceSuggestion) {
+    setForm((current) => ({
+      ...current,
+      area: suggestion.address || current.area,
+      genre: suggestion.genre || current.genre,
+      name: suggestion.name,
+    }));
+    setPlaceLookup((current) => ({
+      ...current,
+      message: `${suggestion.name} を入力しました。`,
+    }));
+  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1056,6 +1149,7 @@ function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () =
     if (!userId || !form.name) return;
 
     setBusy(true);
+    setMessage(null);
     const { data: restaurant, error } = await client
       .from("restaurants")
       .insert({
@@ -1070,6 +1164,14 @@ function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () =
       .select()
       .single();
 
+    if (error || !restaurant) {
+      setBusy(false);
+      setMessage({ text: error?.message ?? "店舗を保存できませんでした。", type: "error" });
+      return;
+    }
+
+    let visit: Visit | null = null;
+
     if (!error && restaurant) {
       const tagNames = form.tags.split(/[、,\s]+/).filter(Boolean);
       for (const name of tagNames) {
@@ -1078,10 +1180,72 @@ function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () =
           .upsert({ user_id: userId, name }, { onConflict: "user_id,name" })
           .select()
           .single();
-        if (tag) await client.from("restaurant_tags").insert({ restaurant_id: restaurant.id, tag_id: tag.id, user_id: userId });
+        if (tag) {
+          await client
+            .from("restaurant_tags")
+            .upsert({ restaurant_id: restaurant.id, tag_id: tag.id, user_id: userId }, { onConflict: "restaurant_id,tag_id" });
+        }
       }
-      onSaved();
     }
+
+    const shouldCreateVisit = form.status === "visited" || files.length > 0 || form.dish_name || form.visitMemo;
+    if (shouldCreateVisit) {
+      const { data: createdVisit, error: visitError } = await client
+        .from("visits")
+        .insert({
+          user_id: userId,
+          restaurant_id: restaurant.id,
+          visited_at: form.visited_at,
+          dish_name: form.dish_name || null,
+          rating: form.rating ? Number(form.rating) : null,
+          memo: form.visitMemo || null,
+        })
+        .select()
+        .single();
+
+      if (visitError || !createdVisit) {
+        setBusy(false);
+        setMessage({
+          text: `店舗は保存しましたが、初回訪問を保存できませんでした。${visitError?.message ?? ""}`,
+          type: "error",
+        });
+        return;
+      }
+
+      visit = createdVisit as Visit;
+    }
+
+    const photoErrors: string[] = [];
+    for (const upload of createVisitPhotoUploads({
+      files,
+      userId,
+      restaurantId: restaurant.id,
+      visitId: visit?.id ?? null,
+      caption: form.caption,
+      createId: () => crypto.randomUUID(),
+    })) {
+      const { error: uploadError } = await client.storage.from("food-photos").upload(upload.path, upload.file);
+      if (uploadError) {
+        photoErrors.push(`${upload.file.name}: ${uploadError.message}`);
+        continue;
+      }
+
+      const { error: photoError } = await client.from("photos").insert(upload.row);
+      if (photoError) {
+        photoErrors.push(`${upload.file.name}: ${photoError.message}`);
+      }
+    }
+
+    if (photoErrors.length) {
+      setBusy(false);
+      setMessage({
+        text: `店舗は保存しましたが、写真${photoErrors.length}枚の登録に失敗しました。${photoErrors.join(" / ")}`,
+        type: "error",
+      });
+      return;
+    }
+
+    onSaved();
     setBusy(false);
   }
 
@@ -1120,10 +1284,103 @@ function RestaurantForm({ onBack, onSaved }: { onBack: () => void; onSaved: () =
           <Field className="md:col-span-2" label="メモ">
             <Textarea className="rounded-xl bg-stone-50/50 border-stone-200/60 min-h-[100px]" placeholder="店内の雰囲気、予算、おすすめメニューなど..." value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
           </Field>
-          <Button className="md:col-span-2 h-11 font-bold rounded-xl shadow-sm press-effect" disabled={busy} type="submit">店舗を保存する</Button>
+          <Field label="初回訪問日">
+            <Input className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60 font-medium cursor-pointer" type="date" value={form.visited_at} onChange={(event) => setForm({ ...form, visited_at: event.target.value })} />
+          </Field>
+          <Field label="食べた料理">
+            <Input className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60" placeholder="例: 特製醤油ラーメン" value={form.dish_name} onChange={(event) => setForm({ ...form, dish_name: event.target.value })} />
+          </Field>
+          <Field className="md:col-span-2" label="初回訪問メモ">
+            <Textarea className="rounded-xl bg-stone-50/50 border-stone-200/60 min-h-[100px]" placeholder="料理の味、サービス、混雑状況など..." value={form.visitMemo} onChange={(event) => setForm({ ...form, visitMemo: event.target.value })} />
+          </Field>
+          <Field label="写真">
+            <Input
+              className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60 file:bg-stone-200/50 file:border-none file:text-xs file:font-semibold cursor-pointer"
+              accept="image/*,.heic,.heif"
+              multiple
+              type="file"
+              onChange={(event) => void handlePhotoFiles(event.target.files)}
+            />
+            {files.length > 0 && (
+              <div className="mt-2 space-y-1 rounded-xl bg-stone-50/70 p-3 text-xs text-stone-600">
+                <p className="font-semibold">{files.length}枚選択中</p>
+                <p className="line-clamp-2">{files.map((selectedFile) => selectedFile.name).join("、")}</p>
+              </div>
+            )}
+            {placeLookup.status !== "idle" && (
+              <PlaceSuggestionPanel lookup={placeLookup} onSelect={applyPlaceSuggestion} />
+            )}
+          </Field>
+          <Field label="写真のキャプション">
+            <Input className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60" placeholder="例: 絶品のチャーシュー" value={form.caption} onChange={(event) => setForm({ ...form, caption: event.target.value })} />
+          </Field>
+          <Button className="md:col-span-2 h-11 font-bold rounded-xl shadow-sm press-effect" disabled={busy} type="submit">
+            <Camera className="size-4" />
+            店舗と写真を保存する
+          </Button>
+          {message && <div className="md:col-span-2"><MessageBanner message={message} /></div>}
         </form>
       </Card>
     </FormShell>
+  );
+}
+
+function PlaceSuggestionPanel({
+  lookup,
+  onSelect,
+}: {
+  lookup: PlaceLookupState;
+  onSelect: (suggestion: PlaceSuggestion) => void;
+}) {
+  const isError = lookup.status === "error";
+  const isUnavailable = lookup.status === "unavailable" || lookup.status === "empty";
+
+  return (
+    <div className="mt-3 space-y-2 rounded-xl border border-stone-200/50 bg-white/80 p-3">
+      <div
+        className={`flex items-center gap-2 text-xs font-medium ${
+          isError ? "text-red-700" : isUnavailable ? "text-amber-700" : "text-stone-600"
+        }`}
+        aria-live="polite"
+      >
+        {lookup.status === "loading" ? (
+          <span className="size-3 rounded-full border border-primary/20 border-t-primary animate-spin" />
+        ) : (
+          <MapPin className="size-3.5 shrink-0" />
+        )}
+        <span>{lookup.message}</span>
+      </div>
+
+      {lookup.suggestions.length > 0 && (
+        <div className="space-y-1.5">
+          {lookup.suggestions.map((suggestion) => (
+            <button
+              key={suggestion.id}
+              className="w-full rounded-xl border border-stone-200/60 bg-stone-50/70 px-3 py-2.5 text-left transition-all duration-200 hover:border-primary/30 hover:bg-primary/5"
+              type="button"
+              onClick={() => onSelect(suggestion)}
+            >
+              <span className="flex items-start justify-between gap-3">
+                <span className="min-w-0 space-y-1">
+                  <span className="block truncate text-sm font-bold text-stone-800">{suggestion.name}</span>
+                  <span className="block truncate text-[11px] text-stone-500 font-light">
+                    {suggestion.address || "住所未取得"}
+                  </span>
+                </span>
+                <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-[10px] font-semibold text-stone-500">
+                  {formatDistance(suggestion.distanceMeters)}
+                </span>
+              </span>
+              {suggestion.genre && (
+                <span className="mt-2 inline-block rounded-md bg-white px-2 py-0.5 text-[10px] text-stone-500">
+                  {suggestion.genre}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1218,7 +1475,7 @@ function VisitForm({ restaurant, onBack, onSaved }: { restaurant: Restaurant; on
           <Field label="写真">
             <Input
               className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60 file:bg-stone-200/50 file:border-none file:text-xs file:font-semibold cursor-pointer"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               multiple
               type="file"
               onChange={(event) => setFiles(Array.from(event.target.files ?? []))}
@@ -1509,7 +1766,7 @@ function MogurecoImportPanel({
             <Input
               {...folderInputProps}
               className="h-11 rounded-xl bg-stone-50/50 border-stone-200/60 file:bg-stone-200/50 file:border-none file:text-xs file:font-semibold cursor-pointer"
-              accept="image/*"
+              accept="image/*,.heic,.heif"
               type="file"
               multiple
               onChange={(event) => readImageFolder(event.target.files)}
@@ -1616,6 +1873,12 @@ function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function formatDistance(distanceMeters: number | null) {
+  if (distanceMeters === null) return "-";
+  if (distanceMeters < 1000) return `${distanceMeters}m`;
+  return `${(distanceMeters / 1000).toFixed(1)}km`;
 }
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
