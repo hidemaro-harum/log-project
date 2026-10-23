@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getPhotoCoordinatesFromArrayBuffer } from "./photo-location.ts";
+import { getPhotoCoordinatesFromArrayBuffer, getPhotoTakenDateFromArrayBuffer } from "./photo-location.ts";
 
 test("extracts GPS coordinates from JPEG EXIF metadata", () => {
   const jpeg = createExifGpsJpeg({
@@ -50,6 +50,21 @@ test("returns null when JPEG has no EXIF GPS metadata", () => {
   assert.equal(getPhotoCoordinatesFromArrayBuffer(jpeg.buffer as ArrayBuffer), null);
 });
 
+test("extracts the original shooting date from JPEG EXIF metadata", () => {
+  const jpeg = createExifDateJpeg("2026:06:28 19:42:03", "2026:07:01 10:00:00");
+  assert.equal(getPhotoTakenDateFromArrayBuffer(jpeg.buffer as ArrayBuffer), "2026-06-28");
+});
+
+test("extracts the original shooting date from HEIC EXIF metadata", () => {
+  const heic = createExifDateHeic("2025:12:31 23:58:00", "2026:01:02 09:00:00");
+  assert.equal(getPhotoTakenDateFromArrayBuffer(heic.buffer as ArrayBuffer), "2025-12-31");
+});
+
+test("rejects invalid EXIF shooting dates", () => {
+  const jpeg = createExifDateJpeg("2026:02:31 12:00:00", "0000:00:00 00:00:00");
+  assert.equal(getPhotoTakenDateFromArrayBuffer(jpeg.buffer as ArrayBuffer), null);
+});
+
 function createExifGpsJpeg({
   latitude,
   latitudeRef,
@@ -77,6 +92,40 @@ function createExifGpsJpeg({
     0xff,
     0xd9,
   ]);
+}
+
+function createExifDateJpeg(original: string, digitized: string) {
+  const exifPayload = concatBytes(asciiBytes("Exif\0\0"), createExifDateTiff(original, digitized));
+  const segmentLength = exifPayload.length + 2;
+  return Uint8Array.from([0xff, 0xd8, 0xff, 0xe1, segmentLength >> 8, segmentLength & 0xff, ...exifPayload, 0xff, 0xd9]);
+}
+
+function createExifDateHeic(original: string, digitized: string) {
+  const exifItem = concatBytes(uint32BE(0), createExifDateTiff(original, digitized));
+  const ftyp = box("ftyp", concatBytes(asciiBytes("heic"), uint32BE(0), asciiBytes("heic"), asciiBytes("mif1")));
+  let meta = createHeicMetaBox(0, exifItem.length);
+  const exifOffset = ftyp.length + meta.length + 8;
+  meta = createHeicMetaBox(exifOffset, exifItem.length);
+  return concatBytes(ftyp, meta, box("mdat", exifItem));
+}
+
+function createExifDateTiff(original: string, digitized: string) {
+  const tiff = new Uint8Array(96);
+  writeAscii(tiff, 0, "II");
+  writeUint16(tiff, 2, 42);
+  writeUint32(tiff, 4, 8);
+
+  writeUint16(tiff, 8, 1);
+  writeIfdEntry(tiff, 10, 0x8769, 4, 1, 26);
+  writeUint32(tiff, 22, 0);
+
+  writeUint16(tiff, 26, 2);
+  writeIfdEntry(tiff, 28, 0x9003, 2, 20, 56);
+  writeIfdEntry(tiff, 40, 0x9004, 2, 20, 76);
+  writeUint32(tiff, 52, 0);
+  writeAscii(tiff, 56, `${original}\0`);
+  writeAscii(tiff, 76, `${digitized}\0`);
+  return tiff;
 }
 
 function createExifGpsHeic({

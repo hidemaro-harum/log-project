@@ -32,6 +32,10 @@ const JPEG_SOI = 0xffd8;
 const APP1_MARKER = 0xe1;
 const EXIF_HEADER = "Exif\0\0";
 const TIFF_MAGIC = 42;
+const EXIF_IFD_TAG = 0x8769;
+const DATE_TIME_TAG = 0x0132;
+const DATE_TIME_ORIGINAL_TAG = 0x9003;
+const DATE_TIME_DIGITIZED_TAG = 0x9004;
 const GPS_IFD_TAG = 0x8825;
 const GPS_LATITUDE_REF_TAG = 1;
 const GPS_LATITUDE_TAG = 2;
@@ -43,12 +47,99 @@ export async function getPhotoCoordinates(file: PhotoLocationFile) {
   return getPhotoCoordinatesFromArrayBuffer(await file.arrayBuffer());
 }
 
+export async function getPhotoTakenDate(file: PhotoLocationFile) {
+  return getPhotoTakenDateFromArrayBuffer(await file.arrayBuffer());
+}
+
 export function getPhotoCoordinatesFromArrayBuffer(buffer: ArrayBuffer): PhotoCoordinates | null {
   const view = new DataView(buffer);
   if (view.byteLength < 4) return null;
 
   if (view.getUint16(0, false) === JPEG_SOI) return parseJpegExifGps(view);
   return parseHeicExifGps(view);
+}
+
+export function getPhotoTakenDateFromArrayBuffer(buffer: ArrayBuffer): string | null {
+  const view = new DataView(buffer);
+  if (view.byteLength < 4) return null;
+
+  if (view.getUint16(0, false) === JPEG_SOI) return parseJpegExifDate(view);
+  return parseHeicExifDate(view);
+}
+
+function parseJpegExifDate(view: DataView) {
+  let offset = 2;
+  while (offset + 4 <= view.byteLength) {
+    if (view.getUint8(offset) !== 0xff) return null;
+
+    const marker = view.getUint8(offset + 1);
+    const segmentLength = view.getUint16(offset + 2, false);
+    const segmentStart = offset + 4;
+    const segmentEnd = offset + 2 + segmentLength;
+    if (segmentLength < 2 || segmentEnd > view.byteLength) return null;
+
+    if (marker === APP1_MARKER && readAscii(view, segmentStart, EXIF_HEADER.length) === EXIF_HEADER) {
+      return parseTiffDate(view, segmentStart + EXIF_HEADER.length, segmentEnd);
+    }
+
+    offset = segmentEnd;
+  }
+
+  return null;
+}
+
+function parseHeicExifDate(view: DataView): string | null {
+  if (!isHeifLikeFile(view)) return null;
+
+  for (const metaBox of findMetaBoxes(view, 0, view.byteLength)) {
+    const childrenStart = metaBox.contentStart + 4;
+    if (childrenStart > metaBox.end) continue;
+
+    let exifItemIds = new Set<number>();
+    let itemLocations = new Map<number, ItemLocation>();
+    for (const child of readBoxes(view, childrenStart, metaBox.end)) {
+      if (child.type === "iinf") exifItemIds = parseItemInfoBox(view, child);
+      if (child.type === "iloc") itemLocations = parseItemLocationBox(view, child);
+    }
+
+    for (const itemId of exifItemIds) {
+      const location = itemLocations.get(itemId);
+      if (!location || location.constructionMethod !== 0) continue;
+      for (const extent of location.extents) {
+        const end = extent.offset + extent.length;
+        if (extent.offset < 0 || extent.length <= 0 || end > view.byteLength) continue;
+        const tiffOffset = findTiffOffsetInExifItem(view, extent.offset, end);
+        if (tiffOffset === null) continue;
+        const date = parseTiffDate(view, tiffOffset, end);
+        if (date) return date;
+      }
+    }
+  }
+
+  return null;
+}
+
+function parseTiffDate(view: DataView, tiffOffset: number, exifEnd: number): string | null {
+  if (tiffOffset + 8 > exifEnd) return null;
+
+  const byteOrder = readAscii(view, tiffOffset, 2);
+  const littleEndian = byteOrder === "II";
+  if (!littleEndian && byteOrder !== "MM") return null;
+  if (view.getUint16(tiffOffset + 2, littleEndian) !== TIFF_MAGIC) return null;
+
+  const firstIfdOffset = tiffOffset + view.getUint32(tiffOffset + 4, littleEndian);
+  const exifIfdEntry = findIfdEntry(view, firstIfdOffset, EXIF_IFD_TAG, littleEndian, exifEnd);
+  if (exifIfdEntry && exifIfdEntry.type === 4 && exifIfdEntry.count === 1) {
+    const exifIfdOffset = tiffOffset + view.getUint32(exifIfdEntry.offset + 8, littleEndian);
+    for (const tag of [DATE_TIME_ORIGINAL_TAG, DATE_TIME_DIGITIZED_TAG]) {
+      const value = readIfdAscii(view, exifIfdOffset, tag, littleEndian, tiffOffset, exifEnd);
+      const parsed = value ? normalizeExifDate(value) : null;
+      if (parsed) return parsed;
+    }
+  }
+
+  const fallback = readIfdAscii(view, firstIfdOffset, DATE_TIME_TAG, littleEndian, tiffOffset, exifEnd);
+  return fallback ? normalizeExifDate(fallback) : null;
 }
 
 function parseJpegExifGps(view: DataView) {
@@ -380,6 +471,40 @@ function readGpsRef(
   if (valueOffset >= exifEnd) return null;
 
   return String.fromCharCode(view.getUint8(valueOffset));
+}
+
+function readIfdAscii(
+  view: DataView,
+  ifdOffset: number,
+  tag: number,
+  littleEndian: boolean,
+  tiffOffset: number,
+  exifEnd: number,
+) {
+  const entry = findIfdEntry(view, ifdOffset, tag, littleEndian, exifEnd);
+  if (!entry || entry.type !== 2 || entry.count < 10) return null;
+
+  const valueOffset = entry.count <= 4 ? entry.offset + 8 : tiffOffset + view.getUint32(entry.offset + 8, littleEndian);
+  if (valueOffset < tiffOffset || valueOffset + entry.count > exifEnd) return null;
+  return readAscii(view, valueOffset, entry.count).replace(/\0+$/, "").trim();
+}
+
+function normalizeExifDate(value: string) {
+  const match = /^(\d{4}):(\d{2}):(\d{2})(?:\s+\d{2}:\d{2}:\d{2})?/.exec(value);
+  if (!match) return null;
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    year < 1900
+    || date.getUTCFullYear() !== year
+    || date.getUTCMonth() !== month - 1
+    || date.getUTCDate() !== day
+  ) return null;
+
+  return `${match[1]}-${match[2]}-${match[3]}`;
 }
 
 function readGpsCoordinate(

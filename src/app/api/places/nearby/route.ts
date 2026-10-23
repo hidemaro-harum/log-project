@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { authenticatePlaceRequest, createPlaceRateLimiter, fetchPlaceJson, parseCoordinate, parseRadiusMeters } from "@/lib/places-api";
 import {
   createGoogleNearbySearchRequest,
   toPlaceSuggestions,
   type GoogleNearbySearchResponse,
 } from "@/lib/place-suggestions";
 
+const checkRateLimit = createPlaceRateLimiter(20, 60_000);
+
 export async function GET(request: NextRequest) {
+  const auth = await authenticatePlaceRequest(request);
+  if (auth.error) return auth.error;
+
   const latitude = parseCoordinate(request.nextUrl.searchParams.get("lat"), -90, 90);
   const longitude = parseCoordinate(request.nextUrl.searchParams.get("lng"), -180, 180);
 
   if (latitude === null || longitude === null) {
     return NextResponse.json({ error: "写真の位置情報が不正です。" }, { status: 400 });
   }
+  const rateLimitError = checkRateLimit(auth.userId);
+  if (rateLimitError) return rateLimitError;
 
   const apiKey = process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
@@ -24,33 +32,9 @@ export async function GET(request: NextRequest) {
     radiusMeters: parseRadiusMeters(request.nextUrl.searchParams.get("radius")),
   });
 
-  const response = await fetch(nearbyRequest.url, {
-    ...nearbyRequest.init,
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    return NextResponse.json(
-      { error: `Google Places API の検索に失敗しました。${await response.text()}` },
-      { status: 502 },
-    );
-  }
-
-  const payload = (await response.json()) as GoogleNearbySearchResponse;
+  const result = await fetchPlaceJson<GoogleNearbySearchResponse>(nearbyRequest, "店舗候補の検索");
+  if (result.error) return result.error;
   return NextResponse.json({
-    suggestions: toPlaceSuggestions(payload, { latitude, longitude }),
+    suggestions: toPlaceSuggestions(result.data, { latitude, longitude }),
   });
-}
-
-function parseCoordinate(value: string | null, min: number, max: number) {
-  if (value === null) return null;
-  const coordinate = Number(value);
-  if (!Number.isFinite(coordinate) || coordinate < min || coordinate > max) return null;
-  return coordinate;
-}
-
-function parseRadiusMeters(value: string | null) {
-  const radius = Number(value);
-  if (!Number.isFinite(radius)) return undefined;
-  return Math.min(Math.max(radius, 50), 500);
 }

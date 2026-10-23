@@ -74,6 +74,11 @@ export function parseMogurecoCsv(csvText: string): MogurecoImportParseResult {
       return;
     }
 
+    if (visitedAt && !isCalendarDate(visitedAt)) {
+      errors.push(`${line}行目: 訪問日に存在しない日付が指定されています。`);
+      return;
+    }
+
     const rating = parseRating(ratingText);
     if (ratingText && rating === null) {
       errors.push(`${line}行目: 評価は0.5から5の数値で入力してください。`);
@@ -147,7 +152,13 @@ function isImageFile(file: MogurecoImageLikeFile, fileName: string) {
 
 function getDateFromImageName(fileName: string) {
   const match = /^(\d{4}-\d{2}-\d{2})_/.exec(fileName);
-  return match?.[1] ?? null;
+  return match && isCalendarDate(match[1]) ? match[1] : null;
+}
+
+function isCalendarDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000-")) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function parseCsvRows(csvText: string) {

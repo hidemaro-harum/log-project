@@ -8,6 +8,7 @@ export type VisitPhotoUploadInput<TFile extends PhotoUploadFile> = {
   restaurantId: string;
   visitId: string | null;
   caption: string;
+  startSortOrder?: number;
   createId: () => string;
 };
 
@@ -20,6 +21,7 @@ export type VisitPhotoUpload<TFile extends PhotoUploadFile> = {
     visit_id: string | null;
     storage_path: string;
     caption: string | null;
+    sort_order: number;
   };
 };
 
@@ -29,11 +31,12 @@ export function createVisitPhotoUploads<TFile extends PhotoUploadFile>({
   restaurantId,
   visitId,
   caption,
+  startSortOrder = 0,
   createId,
 }: VisitPhotoUploadInput<TFile>): VisitPhotoUpload<TFile>[] {
   const trimmedCaption = caption.trim();
 
-  return files.map((file) => {
+  return files.map((file, index) => {
     const path = `${userId}/${restaurantId}/${createId()}-${sanitizeStorageFileName(file.name)}`;
 
     return {
@@ -45,6 +48,7 @@ export function createVisitPhotoUploads<TFile extends PhotoUploadFile>({
         visit_id: visitId,
         storage_path: path,
         caption: trimmedCaption || null,
+        sort_order: startSortOrder + index,
       },
     };
   });

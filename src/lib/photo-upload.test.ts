@@ -30,6 +30,7 @@ test("creates upload entries for multiple visit photos", () => {
           visit_id: "visit-1",
           storage_path: "user-1/restaurant-1/id-1-ramen-1.jpg",
           caption: "夜の訪問",
+          sort_order: 0,
         },
       },
       {
@@ -41,6 +42,7 @@ test("creates upload entries for multiple visit photos", () => {
           visit_id: "visit-1",
           storage_path: "user-1/restaurant-1/id-2-餃子.JPG",
           caption: "夜の訪問",
+          sort_order: 1,
         },
       },
     ],
@@ -58,4 +60,18 @@ test("stores null captions when visit photo caption is blank", () => {
   });
 
   assert.equal(upload.row.caption, null);
+});
+
+test("appends photo sort order after existing photos", () => {
+  const uploads = createVisitPhotoUploads({
+    files: [{ name: "third.jpg" }, { name: "fourth.jpg" }],
+    userId: "user-1",
+    restaurantId: "restaurant-1",
+    visitId: null,
+    caption: "",
+    startSortOrder: 2,
+    createId: () => "id",
+  });
+
+  assert.deepEqual(uploads.map((upload) => upload.row.sort_order), [2, 3]);
 });

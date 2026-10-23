@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 
 const outfit = Outfit({
   subsets: ["latin"],

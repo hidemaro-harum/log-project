@@ -116,3 +116,26 @@ test("groups Mogureco image files by restaurant folder and filename date", () =>
     skippedCount: 1,
   });
 });
+
+test("rejects nonexistent calendar dates while accepting a leap day", () => {
+  const result = parseMogurecoCsv("店舗名,訪問日,評価,メモ,タグ,住所\n" +
+    "うるう日,2024-02-29,4,,,東京\n" +
+    "平年,2025-02-29,4,,,東京\n" +
+    "月末,2026-04-31,4,,,東京\n" +
+    "月外,2026-13-01,4,,,東京\n" +
+    "ゼロ年,0000-01-01,4,,,東京\n");
+
+  assert.deepEqual(result.records.map((record) => record.visitedAt), ["2024-02-29"]);
+  assert.deepEqual(result.errors, [3, 4, 5, 6].map((line) => `${line}行目: 訪問日に存在しない日付が指定されています。`));
+});
+
+test("keeps photos with invalid filename dates without importing an invalid visit date", () => {
+  const result = getMogurecoImageImportSummary([
+    { name: "2026-02-30_photo.jpeg", size: 100, type: "image/jpeg", webkitRelativePath: "食堂/2026-02-30_photo.jpeg" },
+    { name: "2024-02-29_photo.jpeg", size: 100, type: "image/jpeg", webkitRelativePath: "食堂/2024-02-29_photo.jpeg" },
+  ]);
+
+  assert.equal(result.files[0].visitedAt, null);
+  assert.equal(result.files[1].visitedAt, "2024-02-29");
+  assert.equal(result.skippedCount, 0);
+});

@@ -1,4 +1,5 @@
 import type { PhotoCoordinates } from "./photo-location";
+import { inferPrefectureCode } from "./japan-prefectures.ts";
 
 export type PlaceSuggestion = {
   id: string;
@@ -12,6 +13,12 @@ export type PlaceSuggestion = {
 
 export type GoogleNearbySearchResponse = {
   places?: GooglePlace[];
+};
+
+export type GoogleTextSearchResponse = GoogleNearbySearchResponse;
+
+export type ResolvedPlace = PlaceSuggestion & {
+  confidence: "high" | "medium" | "low";
 };
 
 type GoogleNearbySearchRequestInput = {
@@ -44,6 +51,7 @@ type GooglePlace = {
 
 const EARTH_RADIUS_METERS = 6_371_000;
 const GOOGLE_NEARBY_SEARCH_URL = "https://places.googleapis.com/v1/places:searchNearby";
+const GOOGLE_TEXT_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
 const GOOGLE_PLACES_FIELD_MASK = [
   "places.id",
   "places.displayName",
@@ -56,7 +64,111 @@ const GOOGLE_PLACES_FIELD_MASK = [
   "places.location",
   "places.types",
 ].join(",");
-const FOOD_PLACE_TYPES = ["restaurant", "cafe", "bar", "bakery"];
+// Google expands the generic restaurant primary type to cuisine-specific types.
+// Keep non-restaurant food venues explicit; hotel/store secondary tags are not sufficient.
+// https://developers.google.com/maps/documentation/places/web-service/place-types
+const DINING_PRIMARY_TYPES = [
+  "restaurant", "acai_shop", "bagel_shop", "bakery", "bar", "bar_and_grill",
+  "beer_garden", "bistro", "brewpub", "cafe", "cafeteria", "cake_shop", "cat_cafe",
+  "cocktail_bar", "coffee_shop", "coffee_stand", "confectionery", "deli", "dessert_shop",
+  "diner", "dog_cafe", "donut_shop", "food_court", "gastropub", "hot_dog_stand",
+  "ice_cream_shop", "irish_pub", "juice_shop", "kebab_shop", "lounge_bar", "meal_takeaway",
+  "noodle_shop", "pastry_shop", "pub", "salad_shop", "sandwich_shop", "snack_bar",
+  "sports_bar", "steak_house", "tea_house", "wine_bar",
+];
+const diningPrimaryTypes = new Set(DINING_PRIMARY_TYPES);
+export const NAME_SEARCH_RADIUS_METERS = 3_000;
+
+export function parsePlaceSearchQuery(value: string | null) {
+  const query = value?.normalize("NFKC").trim().replace(/\s+/g, " ") ?? "";
+  return query.length >= 2 && query.length <= 100 ? query : null;
+}
+
+export function createGoogleNameSearchRequest({
+  apiKey,
+  query,
+  location,
+}: { apiKey: string; query: string; location: PhotoCoordinates }): GoogleNearbySearchRequest {
+  return {
+    url: GOOGLE_TEXT_SEARCH_URL,
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": GOOGLE_PLACES_FIELD_MASK,
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        languageCode: "ja",
+        regionCode: "JP",
+        pageSize: 20,
+        locationBias: { circle: { center: location, radius: NAME_SEARCH_RADIUS_METERS } },
+        // Text Search accepts only one includedType, which would omit cafes/bars/bakeries.
+        // Filter all results by dining primary type and exact distance below instead.
+      }),
+    },
+  };
+}
+
+export function toNameSearchSuggestions(response: GoogleTextSearchResponse, origin: PhotoCoordinates): PlaceSuggestion[] {
+  return getDiningSuggestions(response, origin)
+    .filter((suggestion) => suggestion.location && getDistanceMeters(origin, suggestion.location) <= NAME_SEARCH_RADIUS_METERS)
+    .slice(0, 8);
+}
+
+export function createGoogleTextSearchRequest({ apiKey, name, area }: { apiKey: string; name: string; area: string }) {
+  return {
+    url: GOOGLE_TEXT_SEARCH_URL,
+    init: {
+      method: "POST" as const,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        "X-Goog-FieldMask": GOOGLE_PLACES_FIELD_MASK,
+      },
+      body: JSON.stringify({
+        textQuery: `${name} ${area}`.trim(),
+        languageCode: "ja",
+        regionCode: "JP",
+        maxResultCount: 5,
+      }),
+    },
+  };
+}
+
+export function resolveTextSearchResults(response: GoogleTextSearchResponse, name: string, area: string): ResolvedPlace[] {
+  const matches: ResolvedPlace[] = [];
+  const requestedPrefecture = inferPrefectureCode(area);
+  for (const place of response.places ?? []) {
+      const location = getPlaceLocation(place);
+      const placeName = place.displayName?.text?.trim();
+      if (!location || !placeName) continue;
+      const address = place.shortFormattedAddress || place.formattedAddress || "";
+      const nameScore = getNameSimilarity(name, placeName);
+      const normalizedArea = normalizeSearchText(area);
+      const normalizedAddress = normalizeSearchText(address);
+      const areaMatches = normalizedArea.length >= 2 && normalizedAddress.length >= 2 && (
+        normalizedAddress.includes(normalizedArea) || normalizedArea.includes(normalizedAddress)
+      );
+      const resultPrefecture = inferPrefectureCode(place.formattedAddress) ?? inferPrefectureCode(address);
+      const conflictingPrefecture = requestedPrefecture !== null && resultPrefecture !== null
+        && requestedPrefecture !== resultPrefecture;
+      const confidence = conflictingPrefecture ? "low"
+        : nameScore >= 0.9 && areaMatches ? "high" : nameScore >= 0.72 ? "medium" : "low";
+      matches.push({
+        id: place.id || placeName,
+        name: placeName,
+        address,
+        genre: getPlaceGenre(place),
+        googleMapsUrl: place.googleMapsUri || null,
+        distanceMeters: null,
+        location,
+        confidence,
+      });
+  }
+  return matches.sort((a, b) => confidenceRank(b.confidence) - confidenceRank(a.confidence));
+}
 
 export function createGoogleNearbySearchRequest({
   apiKey,
@@ -73,7 +185,7 @@ export function createGoogleNearbySearchRequest({
         "X-Goog-FieldMask": GOOGLE_PLACES_FIELD_MASK,
       },
       body: JSON.stringify({
-        includedTypes: FOOD_PLACE_TYPES,
+        includedPrimaryTypes: DINING_PRIMARY_TYPES,
         languageCode: "ja",
         locationRestriction: {
           circle: {
@@ -92,29 +204,33 @@ export function toPlaceSuggestions(
   response: GoogleNearbySearchResponse,
   origin: PhotoCoordinates,
 ): PlaceSuggestion[] {
-  return (response.places ?? [])
+  return getDiningSuggestions(response, origin)
+    .sort((first, second) => (first.distanceMeters ?? Infinity) - (second.distanceMeters ?? Infinity));
+}
+
+function getDiningSuggestions(response: GoogleNearbySearchResponse, origin: PhotoCoordinates) {
+  return (Array.isArray(response.places) ? response.places : [])
     .map((place) => toPlaceSuggestion(place, origin))
-    .filter((suggestion): suggestion is PlaceSuggestion => Boolean(suggestion))
-    .sort((first, second) => {
-      if (first.distanceMeters === null) return 1;
-      if (second.distanceMeters === null) return -1;
-      return first.distanceMeters - second.distanceMeters;
-    });
+    .filter((suggestion): suggestion is PlaceSuggestion => Boolean(suggestion));
 }
 
 function toPlaceSuggestion(place: GooglePlace, origin: PhotoCoordinates): PlaceSuggestion | null {
-  const name = place.displayName?.text?.trim();
-  if (!name) return null;
+  const primaryType = place?.primaryType;
+  if (typeof primaryType !== "string" || (!diningPrimaryTypes.has(primaryType) && !primaryType.endsWith("_restaurant"))) return null;
+  const name = typeof place.displayName?.text === "string" ? place.displayName.text.trim() : "";
+  const id = typeof place.id === "string" ? place.id.trim() : "";
+  if (!name || !id) return null;
 
   const location = getPlaceLocation(place);
+  if (!location) return null;
 
   return {
-    id: place.id || name,
+    id,
     name,
     address: place.shortFormattedAddress || place.formattedAddress || "",
     genre: getPlaceGenre(place),
     googleMapsUrl: place.googleMapsUri || null,
-    distanceMeters: location ? Math.round(getDistanceMeters(origin, location)) : null,
+    distanceMeters: Math.round(getDistanceMeters(origin, location)),
     location,
   };
 }
@@ -123,6 +239,7 @@ function getPlaceLocation(place: GooglePlace): PhotoCoordinates | null {
   const latitude = place.location?.latitude;
   const longitude = place.location?.longitude;
   if (typeof latitude !== "number" || typeof longitude !== "number") return null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
   return { latitude, longitude };
 }
 
@@ -150,4 +267,26 @@ function getDistanceMeters(first: PhotoCoordinates, second: PhotoCoordinates) {
 
 function toRadians(degrees: number) {
   return (degrees * Math.PI) / 180;
+}
+
+function normalizeSearchText(value: string) {
+  return value.normalize("NFKC").toLowerCase().replace(/(?:株式会社|有限会社|店|本店|支店|[\s・･\-ー_()（）])/g, "");
+}
+
+function getNameSimilarity(first: string, second: string) {
+  const a = normalizeSearchText(first);
+  const b = normalizeSearchText(second);
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  if (a.includes(b) || b.includes(a)) return Math.min(a.length, b.length) / Math.max(a.length, b.length);
+  const aPairs = new Set(Array.from({ length: Math.max(0, a.length - 1) }, (_, index) => a.slice(index, index + 2)));
+  const bPairs = new Set(Array.from({ length: Math.max(0, b.length - 1) }, (_, index) => b.slice(index, index + 2)));
+  if (!aPairs.size || !bPairs.size) return 0;
+  let overlap = 0;
+  for (const pair of aPairs) if (bPairs.has(pair)) overlap += 1;
+  return (2 * overlap) / (aPairs.size + bPairs.size);
+}
+
+function confidenceRank(value: ResolvedPlace["confidence"]) {
+  return value === "high" ? 3 : value === "medium" ? 2 : 1;
 }
