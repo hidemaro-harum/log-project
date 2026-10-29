@@ -18,6 +18,7 @@ import {
   Map as MapIcon,
   MapPin,
   Plus,
+  Pencil,
   RefreshCw,
   Settings,
   Star,
@@ -33,6 +34,8 @@ import { clearPhotoUrlCache } from "@/lib/photo-urls";
 import { PhotoTile } from "@/components/bitelog/photo-tile";
 import { PhotoPreview } from "@/components/bitelog/photo-preview";
 import { PhotoAddDialog } from "@/components/bitelog/photo-add-dialog";
+import { SavedPhotoEditor } from "@/components/bitelog/saved-photo-editor";
+import { updateRestaurantPhotoState } from "@/lib/restaurant-photo-state";
 import { PhotoPicker, createPhotoDrafts, type PhotoDraft } from "@/components/bitelog/photo-picker";
 import { RestaurantNameSearch } from "@/components/bitelog/restaurant-name-search";
 import { PlaceSuggestionPanel, type PlaceLookupState } from "@/components/bitelog/place-suggestion-panel";
@@ -752,10 +755,10 @@ export default function Home() {
             onEdit={() => navigate("edit", { restaurant: selected })}
             onBack={() => goBack("list")}
             onDelete={() => void deleteRestaurant(selected)}
-            onPhotosChanged={(photos) => {
-              const updated = { ...selected, photos };
-              setSelected(updated);
-              setRestaurants((current) => current.map((restaurant) => restaurant.id === updated.id ? updated : restaurant));
+            onPhotosChanged={(photos, visit) => {
+              const restaurantId = selected.id;
+              setSelected((current) => current?.id === restaurantId ? updateRestaurantPhotoState(current, photos, visit) : current);
+              setRestaurants((current) => current.map((restaurant) => restaurant.id === restaurantId ? updateRestaurantPhotoState(restaurant, photos, visit) : restaurant));
             }}
           />
         </div>
@@ -1061,7 +1064,7 @@ function RestaurantDetail({
   onAddVisit: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onPhotosChanged: (photos: Photo[]) => void;
+  onPhotosChanged: (photos: Photo[], visit?: Visit) => void;
 }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [photos, setPhotos] = useState(() => sortPhotos(restaurant.photos));
@@ -1070,12 +1073,14 @@ function RestaurantDetail({
   const [savingPhotoOrder, setSavingPhotoOrder] = useState(false);
   const [previewPhotoId, setPreviewPhotoId] = useState<string | null>(null);
   const [addingPhotos, setAddingPhotos] = useState(false);
+  const [editingPhotoId, setEditingPhotoId] = useState<string | null>(null);
   const photosRef = useRef(photos);
   const dragStartPhotosRef = useRef<Photo[]>([]);
   const photoListRef = useRef<HTMLDivElement>(null);
   const savingPhotoOrderRef = useRef(false);
   const draggingPhotoRef = useRef<string | null>(null);
   const previewPhoto = photos.find((photo) => photo.id === previewPhotoId) ?? null;
+  const editingPhoto = photos.find((photo) => photo.id === editingPhotoId) ?? null;
   const sortedVisits = [...(restaurant.visits ?? [])].sort((a, b) => b.visited_at.localeCompare(a.visited_at));
 
   useEffect(() => {
@@ -1194,6 +1199,7 @@ function RestaurantDetail({
                     <span className="text-xs font-semibold text-stone-600">{i + 1}枚目{i === 0 && <span className="ml-1 text-primary">・表紙</span>}</span>
                     <button aria-label={`${i + 1}枚目の写真をドラッグして並べ替え`} className="grid size-11 shrink-0 touch-none cursor-grab place-items-center rounded-lg text-stone-500 hover:bg-stone-100 active:cursor-grabbing disabled:opacity-40" disabled={savingPhotoOrder || photos.length < 2} type="button" onPointerDown={(event) => handlePhotoPointerDown(event, photo.id)}><GripVertical className="size-5" /></button>
                   </div>
+                  <button aria-label={`${i + 1}枚目の写真を編集`} className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-stone-200 text-xs font-semibold text-primary hover:bg-primary/5 disabled:opacity-40" disabled={savingPhotoOrder || deleteBusy} type="button" onClick={() => setEditingPhotoId(photo.id)}><Pencil className="size-3.5" />回転・編集</button>
                   <div className="grid grid-cols-2 gap-1">
                     <button aria-label={`${i + 1}枚目の写真を前へ`} className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-stone-200 text-xs hover:bg-stone-50 disabled:opacity-30" disabled={savingPhotoOrder || i === 0} type="button" onClick={() => movePhotoByButton(photo.id, i - 1)}><ArrowLeft className="size-3" />前へ</button>
                     <button aria-label={`${i + 1}枚目の写真を後ろへ`} className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-stone-200 text-xs hover:bg-stone-50 disabled:opacity-30" disabled={savingPhotoOrder || i === photos.length - 1} type="button" onClick={() => movePhotoByButton(photo.id, i + 1)}><ArrowRight className="size-3" />後ろへ</button>
@@ -1327,20 +1333,35 @@ function RestaurantDetail({
         </div>
 
       </div>
-      {previewPhoto && <PhotoPreview photo={previewPhoto} onClose={() => setPreviewPhotoId(null)} />}
+      {previewPhoto && <PhotoPreview photo={previewPhoto} onClose={() => setPreviewPhotoId(null)} onEdit={savingPhotoOrder || deleteBusy ? undefined : () => { setPreviewPhotoId(null); setEditingPhotoId(previewPhoto.id); }} />}
+      {editingPhoto && (
+        <SavedPhotoEditor
+          key={editingPhoto.id}
+          photo={editingPhoto}
+          onClose={() => setEditingPhotoId(null)}
+          onSaved={(saved) => {
+            const next = photosRef.current.map((photo) => photo.id === saved.id ? { ...photo, storage_path: saved.storage_path } : photo);
+            photosRef.current = next;
+            setPhotos(next);
+            onPhotosChanged(next);
+            setEditingPhotoId(null);
+            setPhotoOrderMessage("写真の編集を保存しました。");
+          }}
+        />
+      )}
       {addingPhotos && (
         <PhotoAddDialog
           restaurant={restaurant}
           photos={photos}
           onClose={() => setAddingPhotos(false)}
-          onAdded={(added) => {
+          onAdded={(added, visit) => {
             const merged = new Map(photosRef.current.map((photo) => [photo.id, photo]));
             for (const photo of added) merged.set(photo.id, photo);
             const next = sortPhotos([...merged.values()]);
             photosRef.current = next;
             setPhotos(next);
-            onPhotosChanged(next);
-            setPhotoOrderMessage(`${added.length}枚の写真を追加しました。`);
+            onPhotosChanged(next, visit);
+            setPhotoOrderMessage(visit ? `来店を記録し、写真${added.length}枚の追加を確認しました。` : `${added.length}枚の写真を追加しました。`);
           }}
         />
       )}

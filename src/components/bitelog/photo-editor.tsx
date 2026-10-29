@@ -15,8 +15,11 @@ import {
 type PhotoEditorProps = {
   file: File;
   initialEdit?: PhotoEdit;
-  onApply: (file: File, edit: PhotoEdit) => void;
+  onApply: (file: File, edit: PhotoEdit) => void | Promise<void>;
   onClose: () => void;
+  applyLabel?: string;
+  applyingLabel?: string;
+  lockAfterApplyError?: boolean;
 };
 
 const buttonClass =
@@ -29,10 +32,15 @@ const aspects: { value: PhotoEdit["aspect"]; label: string; hint: string }[] = [
   { value: "landscape", label: "横長", hint: "4:3" },
 ];
 
-export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditorProps) {
+export function PhotoEditor({
+  file, initialEdit, onApply, onClose,
+  applyLabel = "編集を適用", applyingLabel = "適用中…", lockAfterApplyError = false,
+}: PhotoEditorProps) {
   const titleId = useId();
   const descriptionId = useId();
-  const { dialogRef, activeRef, onCancel } = useModalDialog(onClose);
+  const applyingRef = useRef(false);
+  const pendingApplicationRef = useRef<{ file: File; edit: PhotoEdit } | null>(null);
+  const { dialogRef, activeRef, onCancel } = useModalDialog(close);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const panRef = useRef<{
     pointerId: number;
@@ -46,6 +54,7 @@ export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditor
   const [loaded, setLoaded] = useState<{ file: File; image: HTMLImageElement } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
+  const [retryOnly, setRetryOnly] = useState(false);
   const [panning, setPanning] = useState(false);
   const image = loaded?.file === file ? loaded.image : null;
 
@@ -87,8 +96,12 @@ export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditor
   const canPanX = Boolean(geometry && geometry.rotatedWidth - geometry.crop.width > 0.5);
   const canPanY = Boolean(geometry && geometry.rotatedHeight - geometry.crop.height > 0.5);
 
+  function close() {
+    if (!applyingRef.current) onClose();
+  }
+
   function beginPan(event: PointerEvent<HTMLCanvasElement>) {
-    if (applying || !geometry || (!canPanX && !canPanY) || !event.isPrimary || event.button !== 0) return;
+    if (applyingRef.current || retryOnly || !geometry || (!canPanX && !canPanY) || !event.isPrimary || event.button !== 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
     panRef.current = {
       pointerId: event.pointerId,
@@ -103,6 +116,7 @@ export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditor
   }
 
   function movePan(event: PointerEvent<HTMLCanvasElement>) {
+    if (applyingRef.current || retryOnly) return;
     const pan = panRef.current;
     if (!pan || pan.pointerId !== event.pointerId) return;
     const clamp = (value: number) => Math.min(1, Math.max(0, value));
@@ -117,22 +131,38 @@ export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditor
     const pan = panRef.current;
     if (!pan || pan.pointerId !== event.pointerId) return;
     panRef.current = null;
-    if (cancelled) setEdit(pan.edit);
+    if (cancelled && !applyingRef.current && !retryOnly) setEdit(pan.edit);
     setPanning(false);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
 
   async function apply() {
-    if (!image || applying) return;
+    if (!image || applyingRef.current) return;
+    applyingRef.current = true;
     setApplying(true);
     setError(null);
+    let applyingResult = false;
     try {
-      const isOriginal = (Object.keys(DEFAULT_PHOTO_EDIT) as (keyof PhotoEdit)[]).every((key) => edit[key] === DEFAULT_PHOTO_EDIT[key]);
-      const result = isOriginal ? file : await renderPhotoEdit(file, edit);
-      if (activeRef.current) onApply(result, { ...edit });
-    } catch {
-      if (activeRef.current) setError("写真の編集を適用できませんでした。もう一度お試しください。");
+      let pending = pendingApplicationRef.current;
+      if (!pending) {
+        const isOriginal = (Object.keys(DEFAULT_PHOTO_EDIT) as (keyof PhotoEdit)[]).every((key) => edit[key] === DEFAULT_PHOTO_EDIT[key]);
+        pending = { file: isOriginal ? file : await renderPhotoEdit(file, edit), edit: { ...edit } };
+      }
+      if (!activeRef.current) return;
+      if (lockAfterApplyError) pendingApplicationRef.current = pending;
+      applyingResult = true;
+      await onApply(pending.file, pending.edit);
+      pendingApplicationRef.current = null;
+      if (activeRef.current) setRetryOnly(false);
+    } catch (cause) {
+      if (activeRef.current) {
+        const locked = lockAfterApplyError && applyingResult;
+        setRetryOnly(locked);
+        const detail = cause instanceof Error ? cause.message : "写真の編集を適用できませんでした。";
+        setError(`${detail}${locked ? "編集内容を保ったまま「保存を再試行」を押してください。" : "もう一度お試しください。"}`);
+      }
     } finally {
+      applyingRef.current = false;
       if (activeRef.current) setApplying(false);
     }
   }
@@ -149,7 +179,7 @@ export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditor
     >
       <div className="flex shrink-0 items-center justify-between gap-4 border-b border-stone-100 px-5 py-3">
         <h2 id={titleId} className="text-lg font-bold">写真を編集</h2>
-        <button type="button" aria-label="写真の編集を閉じる" className={buttonClass} onClick={onClose}>
+        <button type="button" aria-label="写真の編集を閉じる" disabled={applying} className={buttonClass} onClick={close}>
           <X className="size-5" aria-hidden="true" />
         </button>
       </div>
@@ -161,7 +191,7 @@ export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditor
               ref={canvasRef}
               aria-label="保存される写真のプレビュー。切り抜き位置はスライダーでも調整できます"
               role="img"
-              className={`${image ? "block" : "hidden"} touch-none ${panning ? "cursor-grabbing" : canPanX || canPanY ? "cursor-grab" : ""}`}
+              className={`${image ? "block" : "hidden"} touch-none ${applying || retryOnly ? "" : panning ? "cursor-grabbing" : canPanX || canPanY ? "cursor-grab" : ""}`}
               style={{ width: "auto", height: "auto", maxWidth: "100%", maxHeight: "42dvh" }}
               onPointerDown={beginPan}
               onPointerMove={movePan}
@@ -174,7 +204,7 @@ export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditor
           <p className="truncate text-xs text-stone-400" title={file.name}>{file.name}</p>
         </div>
         <div className="space-y-5">
-          <fieldset disabled={applying || !image} className="space-y-5 disabled:opacity-50">
+          <fieldset disabled={applying || retryOnly || !image} className="space-y-5 disabled:opacity-50">
             <div className="space-y-2">
               <p className="text-xs font-semibold text-stone-600">回転</p>
               <div className="grid grid-cols-2 gap-2">
@@ -227,10 +257,10 @@ export function PhotoEditor({ file, initialEdit, onApply, onClose }: PhotoEditor
         </div>
       </div>
       <div className="flex shrink-0 justify-end gap-2 border-t border-stone-100 px-5 py-4">
-        <button type="button" className={buttonClass} onClick={onClose}>キャンセル</button>
+        <button type="button" disabled={applying} className={buttonClass} onClick={close}>キャンセル</button>
         <button type="button" disabled={applying || !image} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-white hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-40" onClick={apply}>
           {applying && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-          {applying ? "適用中…" : "編集を適用"}
+          {applying ? applyingLabel : retryOnly ? "保存を再試行" : applyLabel}
         </button>
       </div>
     </dialog>,

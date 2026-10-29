@@ -7,8 +7,10 @@ import { useModalDialog } from "@/hooks/use-modal-dialog";
 import { getBrowserClient } from "@/lib/browser-client";
 import { createPhotoUploadDependencies } from "@/lib/browser-photo-upload";
 import { getNextPhotoSortOrder } from "@/lib/photo-order";
-import { addRestaurantPhotos } from "@/lib/restaurant-photo-add";
-import type { Photo, Restaurant } from "@/types/database";
+import { addRestaurantPhotoVisit } from "@/lib/restaurant-photo-visit";
+import { createFormSaveSession } from "@/lib/form-save-session";
+import { getLocalDateInputValue } from "@/lib/display-format";
+import type { Photo, Restaurant, Visit } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, MessageBanner, type Message } from "./form-primitives";
@@ -22,13 +24,16 @@ export function PhotoAddDialog({
 }: {
   restaurant: Restaurant;
   photos: Photo[];
-  onAdded: (photos: Photo[]) => void;
+  onAdded: (photos: Photo[], visit?: Visit) => void;
   onClose: () => void;
 }) {
   const busyRef = useRef(false);
   const { dialogRef, activeRef, onCancel } = useModalDialog(close);
   const nextSortOrderRef = useRef(getNextPhotoSortOrder(photos));
+  const [saveSession] = useState(createFormSaveSession);
   const [drafts, setDrafts] = useState<PhotoDraft[]>([]);
+  const [mode, setMode] = useState<"visit" | "photos">(restaurant.status === "visited" ? "visit" : "photos");
+  const [visitedAt, setVisitedAt] = useState(getLocalDateInputValue);
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [retryOnly, setRetryOnly] = useState(false);
@@ -54,13 +59,33 @@ export function PhotoAddDialog({
       }
       if (!activeRef.current) return;
 
-      const result = await addRestaurantPhotos({
+      function ensureActive() {
+        if (!activeRef.current) throw new Error("写真の保存を中断しました。");
+      }
+      const result = await addRestaurantPhotoVisit({
         candidates: drafts.map((draft) => ({ id: draft.id, file: draft.file })),
         userId: data.user.id,
         restaurantId: restaurant.id,
         startSortOrder: nextSortOrderRef.current,
         caption,
-      }, createPhotoUploadDependencies(client, { isActive: () => activeRef.current }));
+        newVisitDate: mode === "visit" ? visitedAt : null,
+      }, {
+        ...createPhotoUploadDependencies(client, { isActive: () => activeRef.current }),
+        saveVisit: async (row) => {
+          ensureActive();
+          const { data: visit, error: visitError } = await client.from("visits")
+            .upsert(row, { onConflict: "id" }).select().single();
+          if (visitError || !visit) throw visitError ?? new Error("来店記録の保存結果を確認できませんでした。");
+          return visit as Visit;
+        },
+        markVisited: async (restaurantId) => {
+          ensureActive();
+          const { data: saved, error: statusError } = await client.from("restaurants")
+            .update({ status: "visited", updated_at: new Date().toISOString() })
+            .eq("id", restaurantId).eq("user_id", data.user.id).select("id").single();
+          if (statusError || !saved) throw statusError ?? new Error("店舗の来店状態を確認できませんでした。");
+        },
+      }, saveSession);
 
       if (!activeRef.current) return;
       nextSortOrderRef.current = result.nextSortOrder;
@@ -68,11 +93,11 @@ export function PhotoAddDialog({
       setRetryOnly(keepSelection);
       const remaining = new Set(result.remainingIds);
       setDrafts((current) => current.filter((draft) => remaining.has(draft.id)));
-      if (result.photos.length) onAdded(result.photos);
+      if (result.photos.length || result.visit) onAdded(result.photos, result.visit ?? undefined);
       if (result.error) {
         setMessage({
           type: "error",
-          text: `${result.photos.length ? `${result.photos.length}枚を追加しました。` : ""}残り${result.remainingIds.length}枚を追加できませんでした。${keepSelection ? "選択した写真を保ったまま、もう一度「写真を追加する」を押してください。確認できた写真は重複しません。" : "選択した写真を確認して、もう一度「写真を追加する」を押してください。"}${result.error.message}`,
+          text: `${result.visit ? "来店記録は保存しました。" : ""}${result.photos.length ? `${result.photos.length}枚を追加しました。` : ""}残り${result.remainingIds.length}枚を追加できませんでした。${keepSelection ? "内容を保ったまま「保存を再試行」を押してください。来店記録と写真は重複しません。" : "選択した写真や来店日を確認して、もう一度お試しください。"}${result.error.message}`,
         });
       } else {
         onClose();
@@ -107,6 +132,20 @@ export function PhotoAddDialog({
       </div>
       <form className="flex min-h-0 flex-1 flex-col" onSubmit={save}>
         <div className="min-h-0 space-y-5 overflow-y-auto p-4 sm:p-5">
+          <fieldset disabled={busy || retryOnly} className="space-y-3">
+            <legend className="mb-2 text-sm font-semibold text-stone-700">今回の記録</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${mode === "visit" ? "border-primary bg-primary/5" : "border-stone-200"}`}>
+                <input type="radio" name="photo-add-mode" value="visit" checked={mode === "visit"} onChange={() => setMode("visit")} className="mt-1 accent-primary" />
+                <span><span className="block text-sm font-semibold">新しい来店</span><span className="mt-1 block text-xs leading-relaxed text-stone-500">同じ日でも、来店回数が1回増えます。</span></span>
+              </label>
+              <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${mode === "photos" ? "border-primary bg-primary/5" : "border-stone-200"}`}>
+                <input type="radio" name="photo-add-mode" value="photos" checked={mode === "photos"} onChange={() => setMode("photos")} className="mt-1 accent-primary" />
+                <span><span className="block text-sm font-semibold">写真だけ</span><span className="mt-1 block text-xs leading-relaxed text-stone-500">来店回数や「行きたい」は変えません。</span></span>
+              </label>
+            </div>
+            {mode === "visit" && <Field label="来店日"><Input type="date" required value={visitedAt} onChange={(event) => setVisitedAt(event.target.value)} /></Field>}
+          </fieldset>
           <PhotoPicker
             photos={drafts}
             onChange={setDrafts}
@@ -126,7 +165,7 @@ export function PhotoAddDialog({
           <Button type="button" variant="outline" disabled={busy} onClick={close}>キャンセル</Button>
           <Button type="submit" disabled={busy || !drafts.length}>
             {busy ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-            {busy ? "追加しています…" : "写真を追加する"}
+            {busy ? "保存しています…" : retryOnly ? "保存を再試行" : mode === "visit" ? "来店と写真を保存する" : "写真を追加する"}
           </Button>
         </div>
       </form>

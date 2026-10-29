@@ -134,12 +134,12 @@ export function PhotoPicker({ photos, onChange, onAddFiles, disabled = false, ha
 
   return (
     <div className="space-y-3">
-      <div>
+      <div className="relative inline-flex max-w-full">
         <input
           id={inputId}
           aria-describedby={helpId}
           aria-label="写真を追加"
-          className="peer sr-only"
+          className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           type="file"
           accept="image/*,.heic,.heif"
           multiple
@@ -153,7 +153,7 @@ export function PhotoPicker({ photos, onChange, onAddFiles, disabled = false, ha
             }
           }}
         />
-        <label htmlFor={inputId} className={`inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-4 text-sm font-semibold text-primary hover:bg-primary/10 peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 ${disabled ? "pointer-events-none opacity-40" : ""}`}>
+        <label htmlFor={inputId} className={`pointer-events-none inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/5 px-4 text-sm font-semibold text-primary peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 ${disabled ? "opacity-40" : "peer-hover:bg-primary/10"}`}>
           <ImagePlus aria-hidden="true" className="size-4" />{photos.length ? "写真を追加" : "写真を選ぶ"}
         </label>
       </div>
