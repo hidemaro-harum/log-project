@@ -118,7 +118,7 @@ export function PhotoAddDialog({
     <dialog
       ref={dialogRef}
       aria-label="写真を追加"
-      className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-3xl overflow-hidden rounded-2xl border-0 bg-white p-0 text-stone-800 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm open:flex open:flex-col"
+      className="fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto overscroll-contain rounded-2xl border-0 bg-white p-0 text-stone-800 shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
       onCancel={onCancel}
     >
       <div className="flex shrink-0 items-start justify-between gap-3 border-b border-stone-100 p-4 sm:px-5">
@@ -130,8 +130,9 @@ export function PhotoAddDialog({
           <X className="size-5" />
         </button>
       </div>
-      <form className="flex min-h-0 flex-1 flex-col" onSubmit={save}>
-        <div className="min-h-0 space-y-5 overflow-y-auto p-4 sm:p-5">
+      {/* Keep intrinsic block height: Safari can collapse flex: 1 inside an auto-height dialog. */}
+      <form onSubmit={save}>
+        <div className="space-y-5 p-4 sm:p-5">
           <fieldset disabled={busy || retryOnly} className="space-y-3">
             <legend className="mb-2 text-sm font-semibold text-stone-700">今回の記録</legend>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -161,7 +162,7 @@ export function PhotoAddDialog({
           </Field>
           {message && <MessageBanner message={message} />}
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-stone-100 bg-white p-4 sm:px-5">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-stone-100 bg-white p-4 sm:px-5">
           <Button type="button" variant="outline" disabled={busy} onClick={close}>キャンセル</Button>
           <Button type="submit" disabled={busy || !drafts.length}>
             {busy ? <LoaderCircle className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
